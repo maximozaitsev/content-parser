@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
+import readline from "readline";
 
 // Функция для обработки форматирования Markdown (жирный текст)
 function convertMarkdownFormatting(text: string): string {
@@ -10,15 +11,18 @@ function convertMarkdownFormatting(text: string): string {
 // Список возможных заголовков для Advantages
 const ADVANTAGES_KEYWORDS = ["Advantages", "Ventajas", "Vorteile", "Avantages"];
 
-// Функция парсинга Markdown
+// Функция парсинга Markdown.
+// В дополнение к объекту data возвращаем также список h2-заголовков и текущий режим.
 export function parseMarkdownToJSON(content: string) {
   const data: any = { title: "", intro: [], about: {}, sections: {} };
   let currentSection: string | null = null;
   let sectionContent: any[] = [];
   let listBlock: any = null;
   let inIntro = true;
-  // Используем переменную currentMode, которая может быть "about" или "sections"
+  // Режим: "about" до тех пор, пока не найден заголовок с контрольным словом, затем "sections"
   let currentMode: "about" | "sections" = "about";
+  // Массив для хранения h2-заголовков в порядке появления
+  const h2Headers: string[] = [];
 
   const lines = content.split("\n");
 
@@ -29,7 +33,7 @@ export function parseMarkdownToJSON(content: string) {
       // Заголовок первого уровня используется как title
       data.title = convertMarkdownFormatting(trimmed.replace("# ", "").trim());
     } else if (trimmed.startsWith("## ")) {
-      // При встрече нового заголовка h2 сохраняем предыдущую секцию, если она существует
+      // Сохраняем предыдущую секцию, если она существует
       if (currentSection !== null) {
         if (currentMode === "about") {
           data.about[currentSection] = sectionContent;
@@ -38,12 +42,14 @@ export function parseMarkdownToJSON(content: string) {
         }
       }
 
-      // Получаем текст заголовка h2
+      // Получаем текст заголовка h2 и регистрируем его в списке
       const sectionTitle = convertMarkdownFormatting(
         trimmed.replace("## ", "").trim()
       );
+      h2Headers.push(sectionTitle);
 
-      // Если ещё в режиме about и встречен заголовок с ключевым словом, переключаемся в sections
+      // Если мы всё ещё в режиме "about" и заголовок содержит одно из ключевых слов,
+      // переключаем режим на "sections"
       if (
         currentMode === "about" &&
         ADVANTAGES_KEYWORDS.some((keyword) =>
@@ -53,7 +59,7 @@ export function parseMarkdownToJSON(content: string) {
         currentMode = "sections";
       }
 
-      // Устанавливаем текущий заголовок и сбрасываем временное хранилище для контента
+      // Обновляем текущую секцию и сбрасываем временное хранилище для контента
       currentSection = sectionTitle;
       sectionContent = [];
       listBlock = null;
@@ -111,7 +117,31 @@ export function parseMarkdownToJSON(content: string) {
     }
   }
 
-  return data;
+  // Возвращаем объект с данными, списком h2-заголовков и текущим режимом
+  return { data, h2Headers, currentMode };
+}
+
+// Функция для запроса ввода у пользователя через консоль
+function askUserForHeader(availableHeaders: string[]): Promise<string> {
+  return new Promise((resolve) => {
+    console.log(
+      "\nНе найден заголовок с контрольным словом.\nДоступные заголовки:"
+    );
+    availableHeaders.forEach((header, index) =>
+      console.log(`${index + 1}. ${header}`)
+    );
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(
+      "\nВведите заголовок (точно так, как он указан выше), с которого нужно начать добавлять в sections: ",
+      (answer) => {
+        rl.close();
+        resolve(answer.trim());
+      }
+    );
+  });
 }
 
 // Функция обработки локального файла
@@ -135,5 +165,28 @@ export async function parseFile(filePath: string): Promise<any> {
     return null;
   }
 
-  return parseMarkdownToJSON(content);
+  // Выполняем первоначальный парсинг
+  const { data, h2Headers, currentMode } = parseMarkdownToJSON(content);
+
+  // Если после парсинга не найдено контрольное слово (т.е. ни один h2 не перевёл режим в "sections")
+  // и найдено как минимум 2 заголовка, запрашиваем у пользователя, с какого заголовка начинать заполнять sections.
+  if (currentMode === "about" && h2Headers.length >= 2) {
+    const userHeader = await askUserForHeader(h2Headers);
+    // Если введённый заголовок найден в списке, перемещаем его и все следующие в sections.
+    const index = h2Headers.indexOf(userHeader);
+    if (index !== -1) {
+      // Для каждого заголовка, начиная с userHeader, переносим контент из about в sections.
+      for (let i = index; i < h2Headers.length; i++) {
+        const key = h2Headers[i];
+        data.sections[key] = data.about[key];
+        delete data.about[key];
+      }
+    } else {
+      console.log(
+        `Введённый заголовок "${userHeader}" не найден. Структура останется без изменений.`
+      );
+    }
+  }
+
+  return data;
 }
