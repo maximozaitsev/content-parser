@@ -52,6 +52,13 @@ function parseMarkdownToJSON(content: string) {
       currentSection = trimmed.replace("## ", "").trim();
       listBlock = null;
       inIntro = false; // Теперь контент идёт в sections
+    } else if (trimmed.startsWith("### ")) {
+      // Заголовки h3
+      sectionContent.push({
+        type: "heading",
+        level: 3,
+        text: trimmed.replace("### ", "").trim(),
+      });
     } else if (/^\d+\./.test(trimmed) || trimmed.startsWith("* ")) {
       const itemText = trimmed.replace(/^\d+\.\s*|\*\s*/, "").trim();
       if (!listBlock) {
@@ -66,9 +73,12 @@ function parseMarkdownToJSON(content: string) {
           sectionContent.push(listBlock);
         }
       }
-      listBlock.items.push(itemText);
+      listBlock.items.push(convertMarkdownFormatting(itemText));
     } else if (trimmed) {
-      const paragraph = { type: "paragraph", text: trimmed };
+      const paragraph = {
+        type: "paragraph",
+        text: convertMarkdownFormatting(trimmed),
+      };
       if (inIntro) {
         data.intro.push(paragraph);
       } else {
@@ -83,6 +93,10 @@ function parseMarkdownToJSON(content: string) {
   }
 
   return data;
+}
+
+function convertMarkdownFormatting(text: string): string {
+  return text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); // Преобразуем **жирный текст** в <strong>
 }
 
 // Функция загрузки Google Docs
