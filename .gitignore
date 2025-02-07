@@ -1,1 +1,5 @@
 node_modules/
+dist/
+content/output/
+content/input/
+.env
