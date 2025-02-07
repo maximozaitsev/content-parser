@@ -4,16 +4,21 @@ import mammoth from "mammoth";
 
 // Функция для обработки форматирования Markdown (жирный текст)
 function convertMarkdownFormatting(text: string): string {
-  return text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); // Преобразуем **жирный текст** в <strong>
+  return text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 }
+
+// Список возможных заголовков для Advantages
+const ADVANTAGES_KEYWORDS = ["Advantages", "Ventajas", "Vorteile", "Avantages"];
 
 // Функция парсинга Markdown
 export function parseMarkdownToJSON(content: string) {
-  const data: any = { title: "", intro: [], sections: [] };
+  const data: any = { title: "", intro: [], about: {}, sections: {} };
   let currentSection: string | null = null;
   let sectionContent: any[] = [];
   let listBlock: any = null;
-  let inIntro = true; // Всё, что перед `h2`, попадает в `intro`
+  let inIntro = true;
+  // Используем переменную currentMode, которая может быть "about" или "sections"
+  let currentMode: "about" | "sections" = "about";
 
   const lines = content.split("\n");
 
@@ -21,19 +26,40 @@ export function parseMarkdownToJSON(content: string) {
     const trimmed = line.trim();
 
     if (trimmed.startsWith("# ")) {
+      // Заголовок первого уровня используется как title
       data.title = convertMarkdownFormatting(trimmed.replace("# ", "").trim());
     } else if (trimmed.startsWith("## ")) {
-      // Если есть текущая секция, сохраняем её
-      if (currentSection) {
-        data.sections.push({ title: currentSection, content: sectionContent });
-        sectionContent = [];
+      // При встрече нового заголовка h2 сохраняем предыдущую секцию, если она существует
+      if (currentSection !== null) {
+        if (currentMode === "about") {
+          data.about[currentSection] = sectionContent;
+        } else {
+          data.sections[currentSection] = sectionContent;
+        }
       }
-      currentSection = convertMarkdownFormatting(
+
+      // Получаем текст заголовка h2
+      const sectionTitle = convertMarkdownFormatting(
         trimmed.replace("## ", "").trim()
       );
+
+      // Если ещё в режиме about и встречен заголовок с ключевым словом, переключаемся в sections
+      if (
+        currentMode === "about" &&
+        ADVANTAGES_KEYWORDS.some((keyword) =>
+          sectionTitle.toLowerCase().includes(keyword.toLowerCase())
+        )
+      ) {
+        currentMode = "sections";
+      }
+
+      // Устанавливаем текущий заголовок и сбрасываем временное хранилище для контента
+      currentSection = sectionTitle;
+      sectionContent = [];
       listBlock = null;
-      inIntro = false; // Теперь контент идёт в sections
+      inIntro = false;
     } else if (trimmed.startsWith("### ")) {
+      // Заголовки h3
       sectionContent.push({
         type: "heading",
         level: 3,
@@ -44,6 +70,7 @@ export function parseMarkdownToJSON(content: string) {
       trimmed.startsWith("* ") ||
       trimmed.startsWith("- ")
     ) {
+      // Обработка списков
       const itemText = convertMarkdownFormatting(
         trimmed.replace(/^\d+\.\s*|\*\s*|- /, "").trim()
       );
@@ -61,6 +88,7 @@ export function parseMarkdownToJSON(content: string) {
       }
       listBlock.items.push(itemText);
     } else if (trimmed) {
+      // Обработка параграфов
       const paragraph = {
         type: "paragraph",
         text: convertMarkdownFormatting(trimmed),
@@ -74,9 +102,13 @@ export function parseMarkdownToJSON(content: string) {
     }
   }
 
-  // Добавляем последнюю секцию
-  if (currentSection) {
-    data.sections.push({ title: currentSection, content: sectionContent });
+  // Сохраняем последнюю секцию, если она существует
+  if (currentSection !== null) {
+    if (currentMode === "about") {
+      data.about[currentSection] = sectionContent;
+    } else {
+      data.sections[currentSection] = sectionContent;
+    }
   }
 
   return data;
