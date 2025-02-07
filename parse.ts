@@ -8,7 +8,7 @@ import { Command } from "commander";
 // Инициализация CLI
 const program = new Command();
 program
-  .version("1.1.0")
+  .version("1.2.0")
   .description("Парсер About-секции")
   .option("-f, --file <file>", "Парсинг локального файла (.md, .docx)")
   .option("-u, --url <url>", "Парсинг Google Docs")
@@ -25,17 +25,17 @@ const options = program.opts();
 const INPUT_DIR = path.join(__dirname, "../content/input");
 const OUTPUT_DIR = path.join(__dirname, "../content/output");
 
-// Создаём output-папку, если её нет
-if (!fs.existsSync(OUTPUT_DIR)) {
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-}
+// Создаём папки, если их нет
+if (!fs.existsSync(INPUT_DIR)) fs.mkdirSync(INPUT_DIR, { recursive: true });
+if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
 // Функция парсинга Markdown в JSON
 function parseMarkdownToJSON(content: string) {
-  const data: any = { title: "", sections: [] };
+  const data: any = { title: "", intro: [], sections: [] };
   let currentSection: string | null = null;
   let sectionContent: any[] = [];
   let listBlock: any = null;
+  let inIntro = true; // Всё, что перед h2, попадает в intro
 
   const lines = content.split("\n");
 
@@ -51,6 +51,7 @@ function parseMarkdownToJSON(content: string) {
       }
       currentSection = trimmed.replace("## ", "").trim();
       listBlock = null;
+      inIntro = false; // Теперь контент идёт в sections
     } else if (/^\d+\./.test(trimmed) || trimmed.startsWith("* ")) {
       const itemText = trimmed.replace(/^\d+\.\s*|\*\s*/, "").trim();
       if (!listBlock) {
@@ -59,11 +60,20 @@ function parseMarkdownToJSON(content: string) {
           style: /^\d+\./.test(trimmed) ? "ordered" : "unordered",
           items: [],
         };
-        sectionContent.push(listBlock);
+        if (inIntro) {
+          data.intro.push(listBlock);
+        } else {
+          sectionContent.push(listBlock);
+        }
       }
       listBlock.items.push(itemText);
     } else if (trimmed) {
-      sectionContent.push({ type: "paragraph", text: trimmed });
+      const paragraph = { type: "paragraph", text: trimmed };
+      if (inIntro) {
+        data.intro.push(paragraph);
+      } else {
+        sectionContent.push(paragraph);
+      }
       listBlock = null;
     }
   }
