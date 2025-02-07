@@ -11,23 +11,28 @@ function convertMarkdownFormatting(text: string): string {
 // Список возможных заголовков для Advantages
 const ADVANTAGES_KEYWORDS = ["Advantages", "Ventajas", "Vorteile", "Avantages"];
 
+// Список ключевых слов для определения блока games-to-play (на английском, испанском, немецком, французском)
+const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux"];
+
 /**
  * Функция парсинга Markdown.
  * Возвращает объект вида:
  * {
- *   data: { title, intro, about, advantages, sections },
+ *   data: { title, intro, about, advantages, sections, "games-to-play" },
  *   h2Headers: string[] // список всех h2 в порядке появления
  * }
  */
 export function parseMarkdownToJSON(content: string) {
-  // Инициализируем итоговую структуру, добавляя ключ advantages
+  // Инициализируем итоговую структуру данных
   const data: any = {
     title: "",
     intro: [],
     about: {},
     advantages: {},
     sections: {},
+    // блок "games-to-play" будет добавлен после парсинга
   };
+
   let currentSection: string | null = null;
   let sectionContent: any[] = [];
   let listBlock: any = null;
@@ -63,7 +68,7 @@ export function parseMarkdownToJSON(content: string) {
       );
       h2Headers.push(sectionTitle);
 
-      // Определяем, нужно ли менять режим в зависимости от наличия контрольного слова
+      // Определяем, нужно ли менять режим в зависимости от наличия ключевых слов для advantages
       if (
         ADVANTAGES_KEYWORDS.some((keyword) =>
           sectionTitle.toLowerCase().includes(keyword.toLowerCase())
@@ -73,7 +78,7 @@ export function parseMarkdownToJSON(content: string) {
         if (currentMode === "about") {
           currentMode = "advantages";
         }
-        // Если уже в advantages – остаёмся в нём,
+        // Если уже в advantages – остаёмся в advantages,
         // а если уже перешли в sections – режим не меняем.
       } else {
         // Если мы находимся в advantages, а встречается заголовок без ключевого слова,
@@ -89,8 +94,7 @@ export function parseMarkdownToJSON(content: string) {
       listBlock = null;
       inIntro = false;
     } else if (trimmed.startsWith("### ")) {
-      // При встрече заголовка h3 обязательно сбрасываем listBlock,
-      // чтобы завершить предыдущий список и начать новый, если потребуется.
+      // При встрече заголовка h3 сбрасываем listBlock, чтобы завершить предыдущий список
       listBlock = null;
       sectionContent.push({
         type: "heading",
@@ -158,9 +162,9 @@ function askUserForHeader(
 ): Promise<string> {
   return new Promise((resolve) => {
     console.log("\nДоступные заголовки:");
-    availableHeaders.forEach((header, index) =>
-      console.log(`${index + 1}. ${header}`)
-    );
+    availableHeaders.forEach((header, index) => {
+      console.log(`${index + 1}. ${header}`);
+    });
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -180,6 +184,11 @@ function askUserForHeader(
  * Если при автоматическом разбиении на about/advantages/sections не найдено ни одного h2 с контрольным словом,
  * и обнаружено не менее 3 заголовков, то дополнительно запрашивается у пользователя,
  * с какого заголовка начинать блок advantages и, при возможности, блок sections.
+ * После этого, если в блоке sections есть хотя бы один заголовок,
+ * пытаемся выделить блок games-to-play как первый h2 из sections,
+ * в заголовке которого встречается слово Games (или его аналог).
+ * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
+ * В итоговой структуре JSON мы затем создаём новый объект, где ключ "games-to-play" располагается перед "sections".
  */
 export async function parseFile(filePath: string): Promise<any> {
   const ext = path.extname(filePath).toLowerCase();
@@ -201,11 +210,11 @@ export async function parseFile(filePath: string): Promise<any> {
     return null;
   }
 
-  // Первоначальный парсинг
+  // Первоначальный парсинг Markdown
   const { data, h2Headers, currentMode } = parseMarkdownToJSON(content);
 
-  // Если ни один h2 не перевёл режим в advantages (то есть все разделы оказались в about)
-  // и обнаружено не менее 3 заголовков, то предлагаем вручную разделить контент на три блока.
+  // Если ни один h2 не перевёл режим в advantages (все разделы оказались в about)
+  // и обнаружено не менее 3 заголовков, то предлагаем вручную разделить контент на about, advantages и sections.
   if (currentMode === "about" && h2Headers.length >= 3) {
     // Запрос для выбора заголовка, с которого начать блок advantages
     const userAdvHeader = await askUserForHeader(
@@ -252,5 +261,55 @@ export async function parseFile(filePath: string): Promise<any> {
     }
   }
 
-  return data;
+  // --- Новый блок: выделение "games-to-play" ---
+  // Пытаемся определить блок games-to-play как первый h2 из data.sections,
+  // в заголовке которого встречается одно из ключевых слов GAMES_KEYWORDS.
+  const sectionsHeaders = Object.keys(data.sections);
+  if (sectionsHeaders.length > 0) {
+    // Берём первый заголовок из раздела sections как кандидата
+    let candidate = sectionsHeaders[0];
+    const candidateLower = candidate.toLowerCase();
+    let isGamesCandidate = GAMES_KEYWORDS.some((keyword) =>
+      candidateLower.includes(keyword.toLowerCase())
+    );
+    // Если первый заголовок не подходит, просим пользователя выбрать из списка
+    if (!isGamesCandidate) {
+      const userGamesHeader = await askUserForHeader(
+        sectionsHeaders,
+        "\nВ разделе sections не найден заголовок, содержащий слово 'Games' (или его аналог).\nВыберите заголовок, который нужно принять за блок games-to-play: "
+      );
+      if (sectionsHeaders.includes(userGamesHeader)) {
+        candidate = userGamesHeader;
+        isGamesCandidate = true;
+      }
+    }
+    if (isGamesCandidate) {
+      // Переносим найденный раздел из sections в новый блок "games-to-play"
+      // При этом создаём объект, где ключ – это заголовок h2 (candidate)
+      data["games-to-play"] = { [candidate]: data.sections[candidate] };
+      delete data.sections[candidate];
+    } else {
+      console.log(
+        "Подходящий заголовок для 'games-to-play' не найден в разделе sections."
+      );
+      data["games-to-play"] = {};
+    }
+  } else {
+    data["games-to-play"] = {};
+  }
+  // --- Конец блока games-to-play ---
+
+  // --- Перестановка ключей ---
+  // Если требуется, можно создать итоговый объект с нужным порядком ключей.
+  // Например, чтобы ключ "games-to-play" располагался над "sections":
+  const orderedData = {
+    title: data.title,
+    intro: data.intro,
+    about: data.about,
+    advantages: data.advantages,
+    "games-to-play": data["games-to-play"],
+    sections: data.sections,
+  };
+
+  return orderedData;
 }
