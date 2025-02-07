@@ -59,8 +59,12 @@ function parseMarkdownToJSON(content: string) {
         level: 3,
         text: trimmed.replace("### ", "").trim(),
       });
-    } else if (/^\d+\./.test(trimmed) || trimmed.startsWith("* ")) {
-      const itemText = trimmed.replace(/^\d+\.\s*|\*\s*/, "").trim();
+    } else if (
+      /^\d+\./.test(trimmed) ||
+      trimmed.startsWith("* ") ||
+      trimmed.startsWith("- ")
+    ) {
+      const itemText = trimmed.replace(/^\d+\.\s*|\*\s*|- /, "").trim(); // Убираем "-" и "*"
       if (!listBlock) {
         listBlock = {
           type: "list",
