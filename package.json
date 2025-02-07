@@ -1,0 +1,24 @@
+{
+  "name": "content-parser",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/node": "^22.13.1",
+    "axios": "^1.7.9",
+    "commander": "^13.1.0",
+    "mammoth": "^1.9.0",
+    "ts-node": "^10.9.2",
+    "turndown": "^7.2.0",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@types/turndown": "^5.0.5"
+  }
+}
