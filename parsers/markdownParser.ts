@@ -11,16 +11,29 @@ function convertMarkdownFormatting(text: string): string {
 // Список возможных заголовков для Advantages
 const ADVANTAGES_KEYWORDS = ["Advantages", "Ventajas", "Vorteile", "Avantages"];
 
-// Функция парсинга Markdown.
-// В дополнение к объекту data возвращаем также список h2-заголовков и текущий режим.
+/**
+ * Функция парсинга Markdown.
+ * Возвращает объект вида:
+ * {
+ *   data: { title, intro, about, advantages, sections },
+ *   h2Headers: string[] // список всех h2 в порядке появления
+ * }
+ */
 export function parseMarkdownToJSON(content: string) {
-  const data: any = { title: "", intro: [], about: {}, sections: {} };
+  // Инициализируем итоговую структуру, добавляя ключ advantages
+  const data: any = {
+    title: "",
+    intro: [],
+    about: {},
+    advantages: {},
+    sections: {},
+  };
   let currentSection: string | null = null;
   let sectionContent: any[] = [];
   let listBlock: any = null;
   let inIntro = true;
-  // Режим: "about" до тех пор, пока не найден заголовок с контрольным словом, затем "sections"
-  let currentMode: "about" | "sections" = "about";
+  // Режимы: "about", "advantages", "sections"
+  let currentMode: "about" | "advantages" | "sections" = "about";
   // Массив для хранения h2-заголовков в порядке появления
   const h2Headers: string[] = [];
 
@@ -33,39 +46,52 @@ export function parseMarkdownToJSON(content: string) {
       // Заголовок первого уровня используется как title
       data.title = convertMarkdownFormatting(trimmed.replace("# ", "").trim());
     } else if (trimmed.startsWith("## ")) {
-      // Сохраняем предыдущую секцию, если она существует
+      // Сохраняем предыдущую секцию (если она есть) в соответствующий блок
       if (currentSection !== null) {
         if (currentMode === "about") {
           data.about[currentSection] = sectionContent;
-        } else {
+        } else if (currentMode === "advantages") {
+          data.advantages[currentSection] = sectionContent;
+        } else if (currentMode === "sections") {
           data.sections[currentSection] = sectionContent;
         }
       }
 
-      // Получаем текст заголовка h2 и регистрируем его в списке
+      // Получаем текст заголовка h2 и регистрируем его
       const sectionTitle = convertMarkdownFormatting(
         trimmed.replace("## ", "").trim()
       );
       h2Headers.push(sectionTitle);
 
-      // Если мы всё ещё в режиме "about" и заголовок содержит одно из ключевых слов,
-      // переключаем режим на "sections"
+      // Определяем, нужно ли менять режим в зависимости от наличия контрольного слова
       if (
-        currentMode === "about" &&
         ADVANTAGES_KEYWORDS.some((keyword) =>
           sectionTitle.toLowerCase().includes(keyword.toLowerCase())
         )
       ) {
-        currentMode = "sections";
+        // Если до этого были разделы about – переключаемся на advantages
+        if (currentMode === "about") {
+          currentMode = "advantages";
+        }
+        // Если уже в advantages – остаёмся в нём,
+        // а если уже перешли в sections – режим не меняем.
+      } else {
+        // Если мы находимся в advantages, а встречается заголовок без ключевого слова,
+        // значит, блок advantages окончен – переключаемся на sections.
+        if (currentMode === "advantages") {
+          currentMode = "sections";
+        }
       }
 
-      // Обновляем текущую секцию и сбрасываем временное хранилище для контента
+      // Устанавливаем текущий заголовок и сбрасываем временное хранилище для контента
       currentSection = sectionTitle;
       sectionContent = [];
       listBlock = null;
       inIntro = false;
     } else if (trimmed.startsWith("### ")) {
-      // Заголовки h3
+      // При встрече заголовка h3 обязательно сбрасываем listBlock,
+      // чтобы завершить предыдущий список и начать новый, если потребуется.
+      listBlock = null;
       sectionContent.push({
         type: "heading",
         level: 3,
@@ -108,25 +134,30 @@ export function parseMarkdownToJSON(content: string) {
     }
   }
 
-  // Сохраняем последнюю секцию, если она существует
+  // Сохраняем последнюю секцию
   if (currentSection !== null) {
     if (currentMode === "about") {
       data.about[currentSection] = sectionContent;
-    } else {
+    } else if (currentMode === "advantages") {
+      data.advantages[currentSection] = sectionContent;
+    } else if (currentMode === "sections") {
       data.sections[currentSection] = sectionContent;
     }
   }
 
-  // Возвращаем объект с данными, списком h2-заголовков и текущим режимом
   return { data, h2Headers, currentMode };
 }
 
-// Функция для запроса ввода у пользователя через консоль
-function askUserForHeader(availableHeaders: string[]): Promise<string> {
+/**
+ * Функция для запроса ввода у пользователя через консоль.
+ * Можно задать кастомный текст приглашения.
+ */
+function askUserForHeader(
+  availableHeaders: string[],
+  promptMsg?: string
+): Promise<string> {
   return new Promise((resolve) => {
-    console.log(
-      "\nНе найден заголовок с контрольным словом.\nДоступные заголовки:"
-    );
+    console.log("\nДоступные заголовки:");
     availableHeaders.forEach((header, index) =>
       console.log(`${index + 1}. ${header}`)
     );
@@ -135,7 +166,7 @@ function askUserForHeader(availableHeaders: string[]): Promise<string> {
       output: process.stdout,
     });
     rl.question(
-      "\nВведите заголовок (точно так, как он указан выше), с которого нужно начать добавлять в sections: ",
+      promptMsg || "\nВведите заголовок (точно так, как он указан выше): ",
       (answer) => {
         rl.close();
         resolve(answer.trim());
@@ -144,7 +175,12 @@ function askUserForHeader(availableHeaders: string[]): Promise<string> {
   });
 }
 
-// Функция обработки локального файла
+/**
+ * Функция обработки локального файла.
+ * Если при автоматическом разбиении на about/advantages/sections не найдено ни одного h2 с контрольным словом,
+ * и обнаружено не менее 3 заголовков, то дополнительно запрашивается у пользователя,
+ * с какого заголовка начинать блок advantages и, при возможности, блок sections.
+ */
 export async function parseFile(filePath: string): Promise<any> {
   const ext = path.extname(filePath).toLowerCase();
 
@@ -165,26 +201,54 @@ export async function parseFile(filePath: string): Promise<any> {
     return null;
   }
 
-  // Выполняем первоначальный парсинг
+  // Первоначальный парсинг
   const { data, h2Headers, currentMode } = parseMarkdownToJSON(content);
 
-  // Если после парсинга не найдено контрольное слово (т.е. ни один h2 не перевёл режим в "sections")
-  // и найдено как минимум 2 заголовка, запрашиваем у пользователя, с какого заголовка начинать заполнять sections.
-  if (currentMode === "about" && h2Headers.length >= 2) {
-    const userHeader = await askUserForHeader(h2Headers);
-    // Если введённый заголовок найден в списке, перемещаем его и все следующие в sections.
-    const index = h2Headers.indexOf(userHeader);
-    if (index !== -1) {
-      // Для каждого заголовка, начиная с userHeader, переносим контент из about в sections.
-      for (let i = index; i < h2Headers.length; i++) {
-        const key = h2Headers[i];
-        data.sections[key] = data.about[key];
-        delete data.about[key];
-      }
-    } else {
+  // Если ни один h2 не перевёл режим в advantages (то есть все разделы оказались в about)
+  // и обнаружено не менее 3 заголовков, то предлагаем вручную разделить контент на три блока.
+  if (currentMode === "about" && h2Headers.length >= 3) {
+    // Запрос для выбора заголовка, с которого начать блок advantages
+    const userAdvHeader = await askUserForHeader(
+      h2Headers,
+      "\nНе найден заголовок с контрольным словом.\nВведите заголовок, с которого нужно начать блок advantages: "
+    );
+    const indexAdvantage = h2Headers.indexOf(userAdvHeader);
+    if (indexAdvantage === -1) {
       console.log(
-        `Введённый заголовок "${userHeader}" не найден. Структура останется без изменений.`
+        `Введённый заголовок "${userAdvHeader}" не найден. Структура останется без изменений.`
       );
+    } else {
+      // Если после выбранного для advantages ещё имеются заголовки – запрашиваем заголовок начала sections
+      let indexSection = -1;
+      if (indexAdvantage < h2Headers.length - 1) {
+        const availableForSections = h2Headers.slice(indexAdvantage + 1);
+        const userSecHeader = await askUserForHeader(
+          availableForSections,
+          "\nВведите заголовок, с которого нужно начать блок sections: "
+        );
+        indexSection = h2Headers.indexOf(userSecHeader);
+        if (indexSection === -1) {
+          console.log(
+            `Введённый заголовок "${userSecHeader}" не найден. Все разделы после выбранного будут отнесены к advantages.`
+          );
+        }
+      }
+      // Перераспределяем разделы из data.about в новые блоки
+      const newAbout: any = {};
+      const newAdvantages: any = {};
+      const newSections: any = {};
+      h2Headers.forEach((header, i) => {
+        if (i < indexAdvantage) {
+          newAbout[header] = data.about[header];
+        } else if (indexSection !== -1 && i >= indexSection) {
+          newSections[header] = data.about[header];
+        } else {
+          newAdvantages[header] = data.about[header];
+        }
+      });
+      data.about = newAbout;
+      data.advantages = newAdvantages;
+      data.sections = newSections;
     }
   }
 
