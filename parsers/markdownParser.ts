@@ -14,11 +14,14 @@ const ADVANTAGES_KEYWORDS = ["Advantages", "Ventajas", "Vorteile", "Avantages"];
 // Список ключевых слов для определения блока games-to-play (на английском, испанском, немецком, французском)
 const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux"];
 
+// Список ключевых слов для определения блока bonuses-and-promotions (ищем корень "bonus" или "promo" в любом регистре)
+const BONUS_KEYWORDS = ["bonus", "promo"];
+
 /**
  * Функция парсинга Markdown.
  * Возвращает объект вида:
  * {
- *   data: { title, intro, about, advantages, sections, "games-to-play" },
+ *   data: { title, intro, about, advantages, sections, "games-to-play", "bonuses-and-promotions" },
  *   h2Headers: string[] // список всех h2 в порядке появления
  * }
  */
@@ -30,7 +33,7 @@ export function parseMarkdownToJSON(content: string) {
     about: {},
     advantages: {},
     sections: {},
-    // блок "games-to-play" будет добавлен после парсинга
+    // блоки "games-to-play" и "bonuses-and-promotions" будут добавлены после парсинга
   };
 
   let currentSection: string | null = null;
@@ -188,7 +191,10 @@ function askUserForHeader(
  * пытаемся выделить блок games-to-play как первый h2 из sections,
  * в заголовке которого встречается слово Games (или его аналог).
  * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
- * В итоговой структуре JSON мы затем создаём новый объект, где ключ "games-to-play" располагается перед "sections".
+ * Далее аналогичным образом выделяем блок bonuses-and-promotions,
+ * ищем в заголовке слово с корнем "bonus" или "promo" (на разных языках).
+ * В итоговой структуре JSON мы затем создаём новый объект, где ключ "games-to-play" располагается над "sections",
+ * а ключ "bonuses-and-promotions" — под "games-to-play".
  */
 export async function parseFile(filePath: string): Promise<any> {
   const ext = path.extname(filePath).toLowerCase();
@@ -261,7 +267,7 @@ export async function parseFile(filePath: string): Promise<any> {
     }
   }
 
-  // --- Новый блок: выделение "games-to-play" ---
+  // --- Блок: выделение "games-to-play" ---
   // Пытаемся определить блок games-to-play как первый h2 из data.sections,
   // в заголовке которого встречается одно из ключевых слов GAMES_KEYWORDS.
   const sectionsHeaders = Object.keys(data.sections);
@@ -299,15 +305,52 @@ export async function parseFile(filePath: string): Promise<any> {
   }
   // --- Конец блока games-to-play ---
 
+  // --- Блок: выделение "bonuses-and-promotions" ---
+  // Пытаемся определить блок bonuses-and-promotions как первый h2 из data.sections,
+  // в заголовке которого встречается одно из ключевых слов BONUS_KEYWORDS.
+  const sectionsHeadersAfterGames = Object.keys(data.sections);
+  if (sectionsHeadersAfterGames.length > 0) {
+    let candidateBonus = sectionsHeadersAfterGames[0];
+    const candidateBonusLower = candidateBonus.toLowerCase();
+    let isBonusCandidate = BONUS_KEYWORDS.some((keyword) =>
+      candidateBonusLower.includes(keyword.toLowerCase())
+    );
+    if (!isBonusCandidate) {
+      const userBonusHeader = await askUserForHeader(
+        sectionsHeadersAfterGames,
+        "\nВ разделе sections не найден заголовок, содержащий слово 'bonus' или 'promo' (или его аналог).\nВыберите заголовок, который нужно принять за блок bonuses-and-promotions: "
+      );
+      if (sectionsHeadersAfterGames.includes(userBonusHeader)) {
+        candidateBonus = userBonusHeader;
+        isBonusCandidate = true;
+      }
+    }
+    if (isBonusCandidate) {
+      data["bonuses-and-promotions"] = {
+        [candidateBonus]: data.sections[candidateBonus],
+      };
+      delete data.sections[candidateBonus];
+    } else {
+      console.log(
+        "Подходящий заголовок для 'bonuses-and-promotions' не найден в разделе sections."
+      );
+      data["bonuses-and-promotions"] = {};
+    }
+  } else {
+    data["bonuses-and-promotions"] = {};
+  }
+  // --- Конец блока bonuses-and-promotions ---
+
   // --- Перестановка ключей ---
-  // Если требуется, можно создать итоговый объект с нужным порядком ключей.
-  // Например, чтобы ключ "games-to-play" располагался над "sections":
+  // Создаем итоговый объект с нужным порядком ключей:
+  // title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections
   const orderedData = {
     title: data.title,
     intro: data.intro,
     about: data.about,
     advantages: data.advantages,
     "games-to-play": data["games-to-play"],
+    "bonuses-and-promotions": data["bonuses-and-promotions"],
     sections: data.sections,
   };
 
