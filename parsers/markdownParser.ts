@@ -21,7 +21,7 @@ const BONUS_KEYWORDS = ["bonus", "promo"];
  * Функция парсинга Markdown.
  * Возвращает объект вида:
  * {
- *   data: { title, intro, about, advantages, sections, "games-to-play", "bonuses-and-promotions" },
+ *   data: { title, intro, about, advantages, sections, "games-to-play", "bonuses-and-promotions", faq },
  *   h2Headers: string[] // список всех h2 в порядке появления
  * }
  */
@@ -33,7 +33,7 @@ export function parseMarkdownToJSON(content: string) {
     about: {},
     advantages: {},
     sections: {},
-    // блоки "games-to-play" и "bonuses-and-promotions" будут добавлены после парсинга
+    // Блоки "games-to-play", "bonuses-and-promotions" и "faq" будут добавлены после парсинга
   };
 
   let currentSection: string | null = null;
@@ -190,11 +190,12 @@ function askUserForHeader(
  * После этого, если в блоке sections есть хотя бы один заголовок,
  * пытаемся выделить блок games-to-play как первый h2 из sections,
  * в заголовке которого встречается слово Games (или его аналог).
- * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
  * Далее аналогичным образом выделяем блок bonuses-and-promotions,
  * ищем в заголовке слово с корнем "bonus" или "promo" (на разных языках).
- * В итоговой структуре JSON мы затем создаём новый объект, где ключ "games-to-play" располагается над "sections",
- * а ключ "bonuses-and-promotions" — под "games-to-play".
+ * После чего пытаемся выделить блок faq как самый последний h2, в заголовке которого встречается слово "faq".
+ * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
+ * В итоговой структуре JSON мы затем создаём новый объект, где ключи располагаются в следующем порядке:
+ * title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, faq.
  */
 export async function parseFile(filePath: string): Promise<any> {
   const ext = path.extname(filePath).toLowerCase();
@@ -341,9 +342,42 @@ export async function parseFile(filePath: string): Promise<any> {
   }
   // --- Конец блока bonuses-and-promotions ---
 
+  // --- Блок: выделение "faq" ---
+  // Определяем блок faq как самый последний h2, в заголовке которого содержится слово "faq"
+  let faqCandidate: string | null = null;
+  // Перебираем h2Headers в обратном порядке
+  for (let i = h2Headers.length - 1; i >= 0; i--) {
+    const header = h2Headers[i];
+    if (header.toLowerCase().includes("faq") && header in data.sections) {
+      faqCandidate = header;
+      break;
+    }
+  }
+  if (!faqCandidate) {
+    // Если автоматическое определение не сработало, просим пользователя выбрать заголовок
+    const sectionsHeadersForFaq = Object.keys(data.sections);
+    if (sectionsHeadersForFaq.length > 0) {
+      const userFaqHeader = await askUserForHeader(
+        sectionsHeadersForFaq,
+        "\nВ разделе sections не найден заголовок, содержащий слово 'faq'.\nВыберите заголовок, который нужно принять за блок faq: "
+      );
+      if (sectionsHeadersForFaq.includes(userFaqHeader)) {
+        faqCandidate = userFaqHeader;
+      }
+    }
+  }
+  if (faqCandidate) {
+    data.faq = { [faqCandidate]: data.sections[faqCandidate] };
+    delete data.sections[faqCandidate];
+  } else {
+    console.log("Подходящий заголовок для 'faq' не найден.");
+    data.faq = {};
+  }
+  // --- Конец блока faq ---
+
   // --- Перестановка ключей ---
-  // Создаем итоговый объект с нужным порядком ключей:
-  // title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections
+  // Итоговый объект с нужным порядком ключей:
+  // title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, faq
   const orderedData = {
     title: data.title,
     intro: data.intro,
@@ -352,6 +386,7 @@ export async function parseFile(filePath: string): Promise<any> {
     "games-to-play": data["games-to-play"],
     "bonuses-and-promotions": data["bonuses-and-promotions"],
     sections: data.sections,
+    faq: data.faq,
   };
 
   return orderedData;
