@@ -17,11 +17,14 @@ const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux"];
 // Список ключевых слов для определения блока bonuses-and-promotions (ищем корень "bonus" или "promo" в любом регистре)
 const BONUS_KEYWORDS = ["bonus", "promo"];
 
+// Список ключевых слов для определения блока support (на английском, испанском, немецком, французском)
+const SUPPORT_KEYWORDS = ["support", "soporte", "unterstützung", "soutien"];
+
 /**
  * Функция парсинга Markdown.
  * Возвращает объект вида:
  * {
- *   data: { title, intro, about, advantages, sections, "games-to-play", "bonuses-and-promotions", faq },
+ *   data: { title, intro, about, advantages, sections, "games-to-play", "bonuses-and-promotions", support, faq },
  *   h2Headers: string[] // список всех h2 в порядке появления
  * }
  */
@@ -33,7 +36,7 @@ export function parseMarkdownToJSON(content: string) {
     about: {},
     advantages: {},
     sections: {},
-    // Блоки "games-to-play", "bonuses-and-promotions" и "faq" будут добавлены после парсинга
+    // Блоки "games-to-play", "bonuses-and-promotions", "support" и "faq" будут добавлены после парсинга
   };
 
   let currentSection: string | null = null;
@@ -192,10 +195,13 @@ function askUserForHeader(
  * в заголовке которого встречается слово Games (или его аналог).
  * Далее аналогичным образом выделяем блок bonuses-and-promotions,
  * ищем в заголовке слово с корнем "bonus" или "promo" (на разных языках).
+ * Затем пытаемся выделить блок support как предпоследний заголовок (слева направо) из data.sections,
+ * в заголовке которого встречается слово "support" (или его аналог).
+ * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
  * После чего пытаемся выделить блок faq как самый последний h2, в заголовке которого встречается слово "faq".
  * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
  * В итоговой структуре JSON мы затем создаём новый объект, где ключи располагаются в следующем порядке:
- * title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, faq.
+ * title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, support, faq.
  */
 export async function parseFile(filePath: string): Promise<any> {
   const ext = path.extname(filePath).toLowerCase();
@@ -220,8 +226,7 @@ export async function parseFile(filePath: string): Promise<any> {
   // Первоначальный парсинг Markdown
   const { data, h2Headers, currentMode } = parseMarkdownToJSON(content);
 
-  // Если ни один h2 не перевёл режим в advantages (все разделы оказались в about)
-  // и обнаружено не менее 3 заголовков, то предлагаем вручную разделить контент на about, advantages и sections.
+  // Если режим равен "about" и обнаружено не менее 3 заголовков, предлагаем вручную разделить контент на about, advantages и sections.
   if (currentMode === "about" && h2Headers.length >= 3) {
     // Запрос для выбора заголовка, с которого начать блок advantages
     const userAdvHeader = await askUserForHeader(
@@ -342,6 +347,41 @@ export async function parseFile(filePath: string): Promise<any> {
   }
   // --- Конец блока bonuses-and-promotions ---
 
+  // --- Блок: выделение "support" ---
+  // Ищем среди оставшихся заголовков в data.sections те, в которых встречается слово support (или его аналог)
+  const supportCandidates = Object.keys(data.sections).filter((header) =>
+    SUPPORT_KEYWORDS.some((keyword) =>
+      header.toLowerCase().includes(keyword.toLowerCase())
+    )
+  );
+  let supportCandidate: string | null = null;
+  if (supportCandidates.length >= 2) {
+    // Если найдено несколько, выбираем предпоследний
+    supportCandidate = supportCandidates[supportCandidates.length - 2];
+  } else if (supportCandidates.length === 1) {
+    supportCandidate = supportCandidates[0];
+  } else {
+    // Если автоматическое определение не сработало, просим пользователя выбрать
+    const sectionsHeadersForSupport = Object.keys(data.sections);
+    if (sectionsHeadersForSupport.length > 0) {
+      const userSupportHeader = await askUserForHeader(
+        sectionsHeadersForSupport,
+        "\nВ разделе sections не найден заголовок, содержащий слово 'support' (или его аналог).\nВыберите заголовок, который нужно принять за блок support: "
+      );
+      if (sectionsHeadersForSupport.includes(userSupportHeader)) {
+        supportCandidate = userSupportHeader;
+      }
+    }
+  }
+  if (supportCandidate) {
+    data.support = { [supportCandidate]: data.sections[supportCandidate] };
+    delete data.sections[supportCandidate];
+  } else {
+    console.log("Подходящий заголовок для 'support' не найден.");
+    data.support = {};
+  }
+  // --- Конец блока support ---
+
   // --- Блок: выделение "faq" ---
   // Определяем блок faq как самый последний h2, в заголовке которого содержится слово "faq"
   let faqCandidate: string | null = null;
@@ -377,7 +417,7 @@ export async function parseFile(filePath: string): Promise<any> {
 
   // --- Перестановка ключей ---
   // Итоговый объект с нужным порядком ключей:
-  // title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, faq
+  // title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, support, faq
   const orderedData = {
     title: data.title,
     intro: data.intro,
@@ -386,6 +426,7 @@ export async function parseFile(filePath: string): Promise<any> {
     "games-to-play": data["games-to-play"],
     "bonuses-and-promotions": data["bonuses-and-promotions"],
     sections: data.sections,
+    support: data.support,
     faq: data.faq,
   };
 
