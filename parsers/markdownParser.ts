@@ -67,40 +67,31 @@ export function parseMarkdownToJSON(content: string) {
           data.sections[currentSection] = sectionContent;
         }
       }
-
       // Получаем текст заголовка h2 и регистрируем его
       const sectionTitle = convertMarkdownFormatting(
         trimmed.replace("## ", "").trim()
       );
       h2Headers.push(sectionTitle);
-
-      // Определяем, нужно ли менять режим в зависимости от наличия ключевых слов для advantages
+      // Определяем, нужно ли менять режим
       if (
         ADVANTAGES_KEYWORDS.some((keyword) =>
           sectionTitle.toLowerCase().includes(keyword.toLowerCase())
         )
       ) {
-        // Если до этого были разделы about – переключаемся на advantages
         if (currentMode === "about") {
           currentMode = "advantages";
         }
-        // Если уже в advantages – остаёмся в advantages,
-        // а если уже перешли в sections – режим не меняем.
       } else {
-        // Если мы находимся в advantages, а встречается заголовок без ключевого слова,
-        // значит, блок advantages окончен – переключаемся на sections.
         if (currentMode === "advantages") {
           currentMode = "sections";
         }
       }
-
-      // Устанавливаем текущий заголовок и сбрасываем временное хранилище для контента
+      // Сбрасываем текущий раздел
       currentSection = sectionTitle;
       sectionContent = [];
       listBlock = null;
       inIntro = false;
     } else if (trimmed.startsWith("### ")) {
-      // При встрече заголовка h3 сбрасываем listBlock, чтобы завершить предыдущий список
       listBlock = null;
       sectionContent.push({
         type: "heading",
@@ -112,7 +103,6 @@ export function parseMarkdownToJSON(content: string) {
       trimmed.startsWith("* ") ||
       trimmed.startsWith("- ")
     ) {
-      // Обработка списков
       const itemText = convertMarkdownFormatting(
         trimmed.replace(/^\d+\.\s*|\*\s*|- /, "").trim()
       );
@@ -130,7 +120,6 @@ export function parseMarkdownToJSON(content: string) {
       }
       listBlock.items.push(itemText);
     } else if (trimmed) {
-      // Обработка параграфов
       const paragraph = {
         type: "paragraph",
         text: convertMarkdownFormatting(trimmed),
@@ -143,7 +132,6 @@ export function parseMarkdownToJSON(content: string) {
       listBlock = null;
     }
   }
-
   // Сохраняем последнюю секцию
   if (currentSection !== null) {
     if (currentMode === "about") {
@@ -154,13 +142,11 @@ export function parseMarkdownToJSON(content: string) {
       data.sections[currentSection] = sectionContent;
     }
   }
-
   return { data, h2Headers, currentMode };
 }
 
 /**
  * Функция для запроса ввода у пользователя через консоль.
- * Можно задать кастомный текст приглашения.
  */
 function askUserForHeader(
   availableHeaders: string[],
@@ -187,32 +173,28 @@ function askUserForHeader(
 
 /**
  * Функция обработки локального файла.
- * Если при автоматическом разбиении на about/advantages/sections не найдено ни одного h2 с контрольным словом,
- * и обнаружено не менее 3 заголовков, то дополнительно запрашивается у пользователя,
- * с какого заголовка начинать блок advantages и, при возможности, блок sections.
- * После этого, если в блоке sections есть хотя бы один заголовок,
- * пытаемся выделить блок games-to-play как первый h2 из sections,
- * в заголовке которого встречается слово Games (или его аналог).
- * Далее аналогичным образом выделяем блок bonuses-and-promotions,
- * ищем в заголовке слово с корнем "bonus" или "promo" (на разных языках).
- * Затем пытаемся выделить блок support как предпоследний заголовок (слева направо) из data.sections,
- * в заголовке которого встречается слово "support" (или его аналог).
- * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
- * После чего пытаемся выделить блок faq как самый последний h2, в заголовке которого встречается слово "faq".
- * Если автоматическое определение не срабатывает, выводим список заголовков и просим выбрать один.
- * В итоговой структуре JSON мы затем создаём новый объект, где ключи располагаются в следующем порядке:
- * title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, support, faq.
+ * Основная логика:
+ * 1. Парсинг Markdown и разделение на блоки about, advantages, sections, support, faq, games-to-play, bonuses-and-promotions.
+ * 2. После формирования блока "bonuses-and-promotions" (который извлекается из sections), считаем, что:
+ *    - Deposit – это первый заголовок h2 после заголовка, принятого за bonuses-and-promotions.
+ *      В этом заголовке должно встречаться слово с корнем "deposit" (чтобы охватить варианты deposits)
+ *      или его аналог на испанском, немецком, французском языках.
+ *      Если условие не выполняется, запрашиваем у пользователя нужное название.
+ *    - Withdrawal – это следующий заголовок (второй после бонусного),
+ *      в котором должно встречаться слово с корнем "withdrawal" (или его аналог).
+ *      Если условие не выполняется, запрашиваем у пользователя.
+ *    Эти разделы сразу записываются в about (то есть, не попадают в sections).
+ * 3. Остальные блоки остаются без изменений.
+ * 4. Итоговая структура JSON имеет порядок ключей:
+ *    title, intro, about, advantages, "games-to-play", "bonuses-and-promotions", support, faq.
  */
 export async function parseFile(filePath: string): Promise<any> {
   const ext = path.extname(filePath).toLowerCase();
-
   if (!fs.existsSync(filePath)) {
     console.error(`Файл не найден: ${filePath}`);
     return null;
   }
-
   let content = "";
-
   if (ext === ".md") {
     content = fs.readFileSync(filePath, "utf-8");
   } else if (ext === ".docx") {
@@ -222,13 +204,10 @@ export async function parseFile(filePath: string): Promise<any> {
     console.error(`Неподдерживаемый формат: ${filePath}`);
     return null;
   }
-
-  // Первоначальный парсинг Markdown
   const { data, h2Headers, currentMode } = parseMarkdownToJSON(content);
 
-  // Если режим равен "about" и обнаружено не менее 3 заголовков, предлагаем вручную разделить контент на about, advantages и sections.
+  // Если режим "about" и заголовков >= 3, предлагаем вручную разделить about/advantages/sections.
   if (currentMode === "about" && h2Headers.length >= 3) {
-    // Запрос для выбора заголовка, с которого начать блок advantages
     const userAdvHeader = await askUserForHeader(
       h2Headers,
       "\nНе найден заголовок с контрольным словом.\nВведите заголовок, с которого нужно начать блок advantages: "
@@ -239,7 +218,6 @@ export async function parseFile(filePath: string): Promise<any> {
         `Введённый заголовок "${userAdvHeader}" не найден. Структура останется без изменений.`
       );
     } else {
-      // Если после выбранного для advantages ещё имеются заголовки – запрашиваем заголовок начала sections
       let indexSection = -1;
       if (indexAdvantage < h2Headers.length - 1) {
         const availableForSections = h2Headers.slice(indexAdvantage + 1);
@@ -254,7 +232,6 @@ export async function parseFile(filePath: string): Promise<any> {
           );
         }
       }
-      // Перераспределяем разделы из data.about в новые блоки
       const newAbout: any = {};
       const newAdvantages: any = {};
       const newSections: any = {};
@@ -274,17 +251,13 @@ export async function parseFile(filePath: string): Promise<any> {
   }
 
   // --- Блок: выделение "games-to-play" ---
-  // Пытаемся определить блок games-to-play как первый h2 из data.sections,
-  // в заголовке которого встречается одно из ключевых слов GAMES_KEYWORDS.
   const sectionsHeaders = Object.keys(data.sections);
   if (sectionsHeaders.length > 0) {
-    // Берём первый заголовок из раздела sections как кандидата
     let candidate = sectionsHeaders[0];
     const candidateLower = candidate.toLowerCase();
     let isGamesCandidate = GAMES_KEYWORDS.some((keyword) =>
       candidateLower.includes(keyword.toLowerCase())
     );
-    // Если первый заголовок не подходит, просим пользователя выбрать из списка
     if (!isGamesCandidate) {
       const userGamesHeader = await askUserForHeader(
         sectionsHeaders,
@@ -296,8 +269,6 @@ export async function parseFile(filePath: string): Promise<any> {
       }
     }
     if (isGamesCandidate) {
-      // Переносим найденный раздел из sections в новый блок "games-to-play"
-      // При этом создаём объект, где ключ – это заголовок h2 (candidate)
       data["games-to-play"] = { [candidate]: data.sections[candidate] };
       delete data.sections[candidate];
     } else {
@@ -312,8 +283,6 @@ export async function parseFile(filePath: string): Promise<any> {
   // --- Конец блока games-to-play ---
 
   // --- Блок: выделение "bonuses-and-promotions" ---
-  // Пытаемся определить блок bonuses-and-promotions как первый h2 из data.sections,
-  // в заголовке которого встречается одно из ключевых слов BONUS_KEYWORDS.
   const sectionsHeadersAfterGames = Object.keys(data.sections);
   if (sectionsHeadersAfterGames.length > 0) {
     let candidateBonus = sectionsHeadersAfterGames[0];
@@ -347,8 +316,66 @@ export async function parseFile(filePath: string): Promise<any> {
   }
   // --- Конец блока bonuses-and-promotions ---
 
+  // --- Блок: распределение Deposit и Withdrawal в about ---
+  // Согласно требованиям, Deposit – это первый h2 после бонусного блока, а Withdrawal – следующий.
+  // Если bonuses-and-promotions существует, используем его заголовок для определения порядка.
+  if (
+    data["bonuses-and-promotions"] &&
+    Object.keys(data["bonuses-and-promotions"]).length > 0
+  ) {
+    const bonusHeading = Object.keys(data["bonuses-and-promotions"])[0];
+    const bonusIndex = h2Headers.indexOf(bonusHeading);
+    if (bonusIndex !== -1 && bonusIndex + 1 < h2Headers.length) {
+      // Deposit – следующий заголовок
+      let depositHeading = h2Headers[bonusIndex + 1];
+      const lowerDeposit = depositHeading.toLowerCase();
+      const isDeposit = ["deposit", "depósito", "dépôt", "einzahlung"].some(
+        (kw) => lowerDeposit.includes(kw)
+      );
+      if (!isDeposit) {
+        depositHeading = await askUserForHeader(
+          h2Headers,
+          "\nВведите заголовок для Deposit, содержащий слово с корнем 'deposit' (или его аналог): "
+        );
+      }
+      if (data.sections[depositHeading]) {
+        data.about[depositHeading] = data.sections[depositHeading];
+        delete data.sections[depositHeading];
+      }
+      // Withdrawal – следующий за Deposit
+      if (bonusIndex + 2 < h2Headers.length) {
+        let withdrawalHeading = h2Headers[bonusIndex + 2];
+        const lowerWithdrawal = withdrawalHeading.toLowerCase();
+        const isWithdrawal = [
+          "withdrawal",
+          "retiro",
+          "retrait",
+          "abhebung",
+        ].some((kw) => lowerWithdrawal.includes(kw));
+        if (!isWithdrawal) {
+          withdrawalHeading = await askUserForHeader(
+            h2Headers,
+            "\nВведите заголовок для Withdrawal, содержащий слово с корнем 'withdrawal' (или его аналог): "
+          );
+        }
+        if (data.sections[withdrawalHeading]) {
+          data.about[withdrawalHeading] = data.sections[withdrawalHeading];
+          delete data.sections[withdrawalHeading];
+        }
+      }
+    } else {
+      console.log(
+        "Не удалось определить Deposit и Withdrawal, так как после бонусного раздела нет достаточного количества заголовков."
+      );
+    }
+  } else {
+    console.log(
+      "Блок bonuses-and-promotions не найден, невозможно автоматически определить Deposit и Withdrawal."
+    );
+  }
+  // --- Конец блока распределения Deposit и Withdrawal ---
+
   // --- Блок: выделение "support" ---
-  // Ищем среди оставшихся заголовков в data.sections те, в которых встречается слово support (или его аналог)
   const supportCandidates = Object.keys(data.sections).filter((header) =>
     SUPPORT_KEYWORDS.some((keyword) =>
       header.toLowerCase().includes(keyword.toLowerCase())
@@ -356,12 +383,10 @@ export async function parseFile(filePath: string): Promise<any> {
   );
   let supportCandidate: string | null = null;
   if (supportCandidates.length >= 2) {
-    // Если найдено несколько, выбираем предпоследний
     supportCandidate = supportCandidates[supportCandidates.length - 2];
   } else if (supportCandidates.length === 1) {
     supportCandidate = supportCandidates[0];
   } else {
-    // Если автоматическое определение не сработало, просим пользователя выбрать
     const sectionsHeadersForSupport = Object.keys(data.sections);
     if (sectionsHeadersForSupport.length > 0) {
       const userSupportHeader = await askUserForHeader(
@@ -383,9 +408,7 @@ export async function parseFile(filePath: string): Promise<any> {
   // --- Конец блока support ---
 
   // --- Блок: выделение "faq" ---
-  // Определяем блок faq как самый последний h2, в заголовке которого содержится слово "faq"
   let faqCandidate: string | null = null;
-  // Перебираем h2Headers в обратном порядке
   for (let i = h2Headers.length - 1; i >= 0; i--) {
     const header = h2Headers[i];
     if (header.toLowerCase().includes("faq") && header in data.sections) {
@@ -394,7 +417,6 @@ export async function parseFile(filePath: string): Promise<any> {
     }
   }
   if (!faqCandidate) {
-    // Если автоматическое определение не сработало, просим пользователя выбрать заголовок
     const sectionsHeadersForFaq = Object.keys(data.sections);
     if (sectionsHeadersForFaq.length > 0) {
       const userFaqHeader = await askUserForHeader(
@@ -417,17 +439,17 @@ export async function parseFile(filePath: string): Promise<any> {
 
   // --- Перестановка ключей ---
   // Итоговый объект с нужным порядком ключей:
-  // title, intro, about, advantages, games-to-play, bonuses-and-promotions, sections, support, faq
+  // title, intro, about, advantages, "games-to-play", "bonuses-and-promotions", support, faq, sections
   const orderedData = {
     title: data.title,
     intro: data.intro,
     about: data.about,
     advantages: data.advantages,
-    "games-to-play": data["games-to-play"],
-    "bonuses-and-promotions": data["bonuses-and-promotions"],
+    "games-to-play": data["games-to-play"] || {},
+    "bonuses-and-promotions": data["bonuses-and-promotions"] || {},
+    support: data.support || {},
+    faq: data.faq || {},
     sections: data.sections,
-    support: data.support,
-    faq: data.faq,
   };
 
   return orderedData;
