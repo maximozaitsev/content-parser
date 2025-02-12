@@ -13,7 +13,7 @@ program
   .option(
     "-o, --output <file>",
     "Выходной JSON-файл",
-    "content/output/about.json"
+    "content/output/content.json"
   )
   .parse(process.argv);
 
