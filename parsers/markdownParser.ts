@@ -48,12 +48,28 @@ export function parseMarkdownToJSON(content: string) {
   // Массив для хранения h2-заголовков в порядке появления
   const h2Headers: string[] = [];
 
+  // Локальная переменная для сохранения первых двух параграфов (не используется в итоговом JSON)
+  const skippedParagraphs: string[] = [];
+  let foundH1 = false;
+
   const lines = content.split("\n");
 
   for (const line of lines) {
     const trimmed = line.trim();
 
+    // Если h1 еще не найден и строка не начинается с h1,
+    // сохраняем первые два непустых параграфа и пропускаем их обработку
+    if (!foundH1 && !trimmed.startsWith("# ")) {
+      if (trimmed) {
+        if (skippedParagraphs.length < 2) {
+          skippedParagraphs.push(convertMarkdownFormatting(trimmed));
+        }
+        continue;
+      }
+    }
+
     if (trimmed.startsWith("# ")) {
+      foundH1 = true;
       // Заголовок первого уровня используется как title
       data.title = convertMarkdownFormatting(trimmed.replace("# ", "").trim());
     } else if (trimmed.startsWith("## ")) {
