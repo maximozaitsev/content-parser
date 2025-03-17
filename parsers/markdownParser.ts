@@ -9,10 +9,16 @@ function convertMarkdownFormatting(text: string): string {
 }
 
 // Список возможных заголовков для Advantages
-const ADVANTAGES_KEYWORDS = ["Advantages", "Ventajas", "Vorteile", "Avantages"];
+const ADVANTAGES_KEYWORDS = [
+  "Advantages",
+  "Ventajas",
+  "Vorteile",
+  "Avantages",
+  "Fördelar",
+];
 
-// Список ключевых слов для определения блока games-to-play (на английском, испанском, немецком, французском)
-const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux"];
+// Список ключевых слов для определения блока games-to-play (на английском, испанском, немецком, французском, шведском)
+const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux", "Spel"];
 
 // Список ключевых слов для определения блока bonuses-and-promotions (ищем корень "bonus" или "promo" в любом регистре)
 const BONUS_KEYWORDS = ["bonus", "promo"];
@@ -345,9 +351,13 @@ export async function parseFile(filePath: string): Promise<any> {
       // Deposit – следующий заголовок
       let depositHeading = h2Headers[bonusIndex + 1];
       const lowerDeposit = depositHeading.toLowerCase();
-      const isDeposit = ["deposit", "depósito", "dépôt", "einzahlung"].some(
-        (kw) => lowerDeposit.includes(kw)
-      );
+      const isDeposit = [
+        "deposit",
+        "depósito",
+        "dépôt",
+        "einzahlung",
+        "insättningsmetoder",
+      ].some((kw) => lowerDeposit.includes(kw));
       if (!isDeposit) {
         depositHeading = await askUserForHeader(
           h2Headers,
@@ -367,6 +377,7 @@ export async function parseFile(filePath: string): Promise<any> {
           "retiro",
           "retrait",
           "abhebung",
+          "uttag",
         ].some((kw) => lowerWithdrawal.includes(kw));
         if (!isWithdrawal) {
           withdrawalHeading = await askUserForHeader(
