@@ -5,7 +5,9 @@ import readline from "readline";
 
 // Функция для обработки форматирования Markdown (жирный текст)
 function convertMarkdownFormatting(text: string): string {
-  return text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\\-(?=\s|$)/g, "-");
 }
 
 // Список возможных заголовков для Advantages
