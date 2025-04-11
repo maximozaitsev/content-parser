@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { parseFile } from "./parsers/markdownParser";
 import { fetchGoogleDocs } from "./parsers/googleDocsParser";
 import { ensureDirectories, saveJSON } from "./parsers/fileUtils";
+import { assembleBlocks } from "./parsers/assembleBlocks";
 
 // Инициализация CLI
 const program = new Command();
@@ -23,20 +24,23 @@ const options = program.opts();
 ensureDirectories();
 
 (async function main() {
-  let jsonData;
+  let parsed: any;
 
   if (options.url) {
     console.log("🌍 Загружаем Google Docs...");
     const markdownContent = await fetchGoogleDocs(options.url);
-    jsonData = parseFile(markdownContent);
+    // Обратите внимание: для URL передаём содержимое, полученное от Google Docs
+    parsed = await parseFile(markdownContent);
   } else if (options.file) {
     console.log("📂 Обрабатываем локальный файл...");
-    jsonData = await parseFile(options.file);
+    parsed = await parseFile(options.file);
   } else {
     console.error("❌ Укажите --url или --file");
     process.exit(1);
   }
 
+  // Сборка итогового объекта без лишних полей, согласно оригинальной выдаче
+  const jsonData = await assembleBlocks(parsed);
   saveJSON(options.output, jsonData);
   console.log(`✅ JSON сохранён в: ${options.output}`);
 })();

@@ -100,10 +100,7 @@
       {
         "type": "list",
         "style": "unordered",
-        "items": [
-          "Restrictive Withdrawal Limits",
-          "No mobile app"
-        ]
+        "items": ["Restrictive Withdrawal Limits", "No mobile app"]
       }
     ]
   },
