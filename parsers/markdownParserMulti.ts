@@ -42,9 +42,10 @@ function detectSlug(title: string, isFirst: boolean): keyof SiteData {
 }
 
 // Регэксы для метаданных (поддерживают **Title**, **Title:**, Title, Title:)
-const titlePattern = /^(?:\*\*Title\*\*|\*\*Title:\*\*|Title)\s*:\s*(.+)$/i;
+export const titlePattern =
+  /^(?:\*\*Title\*\*|\*\*Title:\*\*|Title)\s*:\s*(.+)$/i;
 // Регэксы для Description (поддерживают **Description**, **Description:**, Description, Description:)
-const descPattern =
+export const descPattern =
   /^(?:\*\*Description\*\*|\*\*Description:\*\*|Description)\s*:\s*(.+)$/i;
 
 /**
