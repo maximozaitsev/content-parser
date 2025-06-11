@@ -27,18 +27,25 @@ export interface SiteData {
   login: PageData;
 }
 
-// Порядок страниц
-const slugOrder: (keyof SiteData)[] = [
-  "home",
-  "games",
-  "app",
-  "bonus",
-  "login",
-];
+/**
+ * Определяет slug страницы по ключевым словам в заголовке
+ */
+function detectSlug(title: string, isFirst: boolean): keyof SiteData {
+  const lower = title.toLowerCase();
+  if (isFirst) return "home";
+  if (lower.includes("games")) return "games";
+  if (lower.includes("app")) return "app";
+  if (lower.includes("login")) return "login";
+  if (lower.includes("bonus")) return "bonus";
+  console.warn(`Unknown page type for title "${title}", defaulting to home`);
+  return "home";
+}
 
-// Регэксы для метаданных
-const titlePattern = /^(?:\*\*Title\*\*|Title):\s*(.+)$/i;
-const descPattern = /^(?:\*\*Description\*\*|Description):\s*(.+)$/i;
+// Регэксы для метаданных (поддерживают **Title**, **Title:**, Title, Title:)
+const titlePattern = /^(?:\*\*Title\*\*|\*\*Title:\*\*|Title)\s*:\s*(.+)$/i;
+// Регэксы для Description (поддерживают **Description**, **Description:**, Description, Description:)
+const descPattern =
+  /^(?:\*\*Description\*\*|\*\*Description:\*\*|Description)\s*:\s*(.+)$/i;
 
 /**
  * Удаляет Markdown-картинки из текста
@@ -110,24 +117,39 @@ export function parseMarkdownToSiteData(content: string): SiteData {
     index: number;
   }
   const metas: MetaPos[] = [];
-
-  for (let i = 0, pageIdx = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const tMatch = lines[i].match(titlePattern);
-    const dMatch = lines[i + 1]?.match(descPattern);
-    if (tMatch && dMatch && pageIdx < slugOrder.length) {
-      const slug = slugOrder[pageIdx];
-      metas.push({
-        slug,
-        title: tMatch[1].trim(),
-        description: dMatch[1].trim(),
-        index: i + 2,
-      });
-      pageIdx++;
-      i++; // пропускаем описание
+    if (tMatch) {
+      console.log(
+        `DEBUG: Found titlePattern at line ${i + 1}: "${lines[i].trim()}"`
+      );
+      // Skip blank lines to find description
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() === "") {
+        j++;
+      }
+      const dMatch = lines[j]?.match(descPattern);
+      if (!dMatch) {
+        console.warn(
+          `DEBUG: No description match at line ${j + 1}: "${lines[j]?.trim()}"`
+        );
+      }
+      if (dMatch) {
+        const titleText = tMatch[1].trim();
+        const slug = detectSlug(titleText, metas.length === 0);
+        metas.push({
+          slug,
+          title: titleText,
+          description: dMatch[1].trim(),
+          index: j + 1,
+        });
+        i = j; // skip over description
+      }
     }
   }
+  console.log(`DEBUG: metas collected (${metas.length}):`, metas);
 
-  if (metas.length !== slugOrder.length) {
+  if (metas.length !== 5) {
     console.warn("Failed to detect all page metadata. Detected headings:");
     // вывести все заголовки H2
     const h2s = lines
