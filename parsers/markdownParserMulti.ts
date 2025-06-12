@@ -83,13 +83,14 @@ function parseBlocks(lines: string[]): Block[] {
       listBlock.items!.push(text);
       continue;
     }
-    // Заголовок H2/H3
-    const hMatch = trimmed.match(/^(##?)\s+(.+)$/);
+    // Заголовки H1–H6
+    const hMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
     if (hMatch) {
       listBlock = null;
+      const level = hMatch[1].length;
       blocks.push({
         type: "heading",
-        level: hMatch[1].length + 1,
+        level,
         text: hMatch[2].trim(),
       });
       continue;
