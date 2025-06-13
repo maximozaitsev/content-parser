@@ -34,7 +34,12 @@ function detectSlug(title: string, isFirst: boolean): keyof SiteData {
   const lower = title.toLowerCase();
   if (isFirst) return "home";
   if (lower.includes("games")) return "games";
-  if (lower.includes("app")) return "app";
+  if (
+    lower.includes("app") ||
+    lower.includes("website") ||
+    lower.includes("mobile")
+  )
+    return "app";
   if (lower.includes("login")) return "login";
   if (lower.includes("bonus")) return "bonus";
   console.warn(`Unknown page type for title "${title}", defaulting to home`);
