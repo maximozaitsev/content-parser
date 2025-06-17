@@ -56,12 +56,11 @@ function detectSlug(title: string, isFirst: boolean): keyof SiteData {
   return "home";
 }
 
-// Регэксы для метаданных (поддерживают **Title**, **Title:**, Title, Title:)
+// Регэксы для метаданных (поддерживают Title, Meta-Title, SEO-Title и их вариации, универсальная форма)
 export const titlePattern =
-  /^(?:\*\*Title\*\*|\*\*Title:\*\*|Title)\s*:\s*(.+)$/i;
-// Регэксы для Description (поддерживают **Description**, **Description:**, Description, Description:)
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*title\s*(?:\*\*?)?\s*:\s*(.+)$/i;
 export const descPattern =
-  /^(?:\*\*Description\*\*|\*\*Description:\*\*|Description)\s*:\s*(.+)$/i;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*description\s*(?:\*\*?)?\s*:\s*(.+)$/i;
 
 /**
  * Удаляет Markdown-картинки из текста
@@ -153,7 +152,12 @@ export function parseMarkdownToSiteData(content: string): SiteData {
       }
       if (dMatch) {
         const titleText = tMatch[1].trim();
-        const slug = detectSlug(titleText, metas.length === 0);
+        // Strip bold Markdown from title
+        const cleanTitle = titleText.replace(/^\*{1,2}\s*/, '').replace(/\s*\*{1,2}$/, '').trim();
+        // Strip bold Markdown from description
+        const descText = dMatch[1].trim();
+        const cleanDesc = descText.replace(/^\*{1,2}\s*/, '').replace(/\s*\*{1,2}$/, '').trim();
+        const slug = detectSlug(cleanTitle, metas.length === 0);
         // Skip duplicate slug entries
         if (metas.length > 0 && metas[metas.length - 1].slug === slug) {
           i = j;
@@ -161,8 +165,8 @@ export function parseMarkdownToSiteData(content: string): SiteData {
         }
         metas.push({
           slug,
-          title: titleText,
-          description: dMatch[1].trim(),
+          title: cleanTitle,
+          description: cleanDesc,
           index: j + 1,
         });
         i = j; // skip over description
