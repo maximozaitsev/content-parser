@@ -153,10 +153,16 @@ export function parseMarkdownToSiteData(content: string): SiteData {
       if (dMatch) {
         const titleText = tMatch[1].trim();
         // Strip bold Markdown from title
-        const cleanTitle = titleText.replace(/^\*{1,2}\s*/, '').replace(/\s*\*{1,2}$/, '').trim();
+        const cleanTitle = titleText
+          .replace(/^\*{1,2}\s*/, "")
+          .replace(/\s*\*{1,2}$/, "")
+          .trim();
         // Strip bold Markdown from description
         const descText = dMatch[1].trim();
-        const cleanDesc = descText.replace(/^\*{1,2}\s*/, '').replace(/\s*\*{1,2}$/, '').trim();
+        const cleanDesc = descText
+          .replace(/^\*{1,2}\s*/, "")
+          .replace(/\s*\*{1,2}$/, "")
+          .trim();
         const slug = detectSlug(cleanTitle, metas.length === 0);
         // Skip duplicate slug entries
         if (metas.length > 0 && metas[metas.length - 1].slug === slug) {
@@ -193,7 +199,15 @@ export function parseMarkdownToSiteData(content: string): SiteData {
     const start = meta.index;
     const end = metas[idx + 1]?.index ?? lines.length;
     const fragment = lines.slice(start, end);
-    const blocks = parseBlocks(fragment);
+    const blocksAll = parseBlocks(fragment);
+    const blocks = blocksAll.filter(
+      (b) =>
+        !(
+          b.type === "paragraph" &&
+          typeof b.text === "string" &&
+          (titlePattern.test(b.text) || descPattern.test(b.text))
+        )
+    );
     siteData[meta.slug] = {
       title: meta.title,
       description: meta.description,
