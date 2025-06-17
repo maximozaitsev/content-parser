@@ -79,6 +79,11 @@ function parseBlocks(lines: string[]): Block[] {
 
   for (let raw of lines) {
     const trimmed = raw.trim();
+    // skip empty headings like "#", "##", "###"
+    if (/^#{1,6}\s*$/.test(trimmed)) {
+      listBlock = null;
+      continue;
+    }
     if (!trimmed) {
       listBlock = null;
       continue;
@@ -106,7 +111,9 @@ function parseBlocks(lines: string[]): Block[] {
       listBlock = null;
       // strip bold from headings
       const rawHeading = hMatch[2].trim();
-      const cleanHeading = rawHeading.replace(boldRegex, "$1").replace(/\\/g, "");
+      const cleanHeading = rawHeading
+        .replace(boldRegex, "$1")
+        .replace(/\\/g, "");
       blocks.push({
         type: "heading",
         level: hMatch[1].length,
