@@ -74,6 +74,7 @@ function removeImages(content: string): string {
  */
 function parseBlocks(lines: string[]): Block[] {
   const blocks: Block[] = [];
+  const boldRegex = /\*\*(.+?)\*\*/g;
   let listBlock: Block | null = null;
 
   for (let raw of lines) {
@@ -85,7 +86,8 @@ function parseBlocks(lines: string[]): Block[] {
     // Список
     if (/^\d+\./.test(trimmed) || /^[*\-]\s+/.test(trimmed)) {
       const isOrdered = /^\d+\./.test(trimmed);
-      const text = trimmed.replace(/^\d+\.|^[*\-]\s+/, "").trim();
+      let text = trimmed.replace(/^\d+\.|^[*\-]\s+/, "").trim();
+      text = text.replace(boldRegex, "<strong>$1</strong>");
       if (!listBlock) {
         listBlock = {
           type: "list",
@@ -101,16 +103,20 @@ function parseBlocks(lines: string[]): Block[] {
     const hMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
     if (hMatch) {
       listBlock = null;
-      const level = hMatch[1].length;
+      // strip bold from headings
+      const rawHeading = hMatch[2].trim();
+      const cleanHeading = rawHeading.replace(boldRegex, "$1");
       blocks.push({
         type: "heading",
-        level,
-        text: hMatch[2].trim(),
+        level: hMatch[1].length,
+        text: cleanHeading,
       });
       continue;
     }
     // Параграф
-    blocks.push({ type: "paragraph", text: trimmed });
+    // inline bold to <strong> in paragraphs
+    const paraText = trimmed.replace(boldRegex, "<strong>$1</strong>");
+    blocks.push({ type: "paragraph", text: paraText });
     listBlock = null;
   }
 
@@ -200,14 +206,15 @@ export function parseMarkdownToSiteData(content: string): SiteData {
     const end = metas[idx + 1]?.index ?? lines.length;
     const fragment = lines.slice(start, end);
     const blocksAll = parseBlocks(fragment);
-    const blocks = blocksAll.filter(
-      (b) =>
-        !(
-          b.type === "paragraph" &&
-          typeof b.text === "string" &&
-          (titlePattern.test(b.text) || descPattern.test(b.text))
-        )
-    );
+    const blocks = blocksAll.filter((b) => {
+      if (b.type === "paragraph" && typeof b.text === "string") {
+        const plain = b.text.replace(/<\/?strong>/gi, "");
+        if (titlePattern.test(plain) || descPattern.test(plain)) {
+          return false;
+        }
+      }
+      return true;
+    });
     siteData[meta.slug] = {
       title: meta.title,
       description: meta.description,

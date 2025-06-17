@@ -8,7 +8,7 @@ const ADVANTAGES_KEYWORDS = [
   "Avantages",
   "Fördelar",
 ];
-const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux", "Spel"];
+const GAMES_KEYWORDS = ["Games", "Game", "Juegos", "Spiele", "Jeux", "Spel"];
 const BONUS_KEYWORDS = ["bonus", "promo"];
 const SUPPORT_KEYWORDS = ["support", "soporte", "unterstützung", "soutien"];
 
@@ -169,6 +169,7 @@ export async function assembleBlocks(parsed: {
       const lowerDeposit = depositHeading.toLowerCase();
       const isDeposit = [
         "deposit",
+        "depositing",
         "depósito",
         "dépôt",
         "einzahlung",
@@ -189,6 +190,7 @@ export async function assembleBlocks(parsed: {
         const lowerWithdrawal = withdrawalHeading.toLowerCase();
         const isWithdrawal = [
           "withdrawal",
+          "withdrawing",
           "retiro",
           "retrait",
           "abhebung",
