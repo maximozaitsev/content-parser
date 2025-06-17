@@ -9,14 +9,15 @@ import mammoth from "mammoth";
 function convertMarkdownFormatting(text: string): string {
   return text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\\-(?=\s|$)/g, "-");
+    .replace(/\\-(?=\s|$)/g, "-")
+    .replace(/\\/g, "");
 }
 
 /**
  * Удаляет Markdown-жирный шрифт (**...**) без сохранения тэгов.
  */
 function stripBoldMarkdown(text: string): string {
-  return text.replace(/\*\*(.*?)\*\*/g, "$1");
+  return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\\/g, "");
 }
 
 /**

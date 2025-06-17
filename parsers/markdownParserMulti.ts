@@ -88,6 +88,7 @@ function parseBlocks(lines: string[]): Block[] {
       const isOrdered = /^\d+\./.test(trimmed);
       let text = trimmed.replace(/^\d+\.|^[*\-]\s+/, "").trim();
       text = text.replace(boldRegex, "<strong>$1</strong>");
+      text = text.replace(/\\/g, "");
       if (!listBlock) {
         listBlock = {
           type: "list",
@@ -105,7 +106,7 @@ function parseBlocks(lines: string[]): Block[] {
       listBlock = null;
       // strip bold from headings
       const rawHeading = hMatch[2].trim();
-      const cleanHeading = rawHeading.replace(boldRegex, "$1");
+      const cleanHeading = rawHeading.replace(boldRegex, "$1").replace(/\\/g, "");
       blocks.push({
         type: "heading",
         level: hMatch[1].length,
@@ -115,7 +116,9 @@ function parseBlocks(lines: string[]): Block[] {
     }
     // Параграф
     // inline bold to <strong> in paragraphs
-    const paraText = trimmed.replace(boldRegex, "<strong>$1</strong>");
+    const paraText = trimmed
+      .replace(boldRegex, "<strong>$1</strong>")
+      .replace(/\\/g, "");
     blocks.push({ type: "paragraph", text: paraText });
     listBlock = null;
   }
@@ -162,12 +165,14 @@ export function parseMarkdownToSiteData(content: string): SiteData {
         const cleanTitle = titleText
           .replace(/^\*{1,2}\s*/, "")
           .replace(/\s*\*{1,2}$/, "")
+          .replace(/\\/g, "")
           .trim();
         // Strip bold Markdown from description
         const descText = dMatch[1].trim();
         const cleanDesc = descText
           .replace(/^\*{1,2}\s*/, "")
           .replace(/\s*\*{1,2}$/, "")
+          .replace(/\\/g, "")
           .trim();
         const slug = detectSlug(cleanTitle, metas.length === 0);
         // Skip duplicate slug entries
