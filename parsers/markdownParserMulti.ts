@@ -32,16 +32,26 @@ export interface SiteData {
  */
 function detectSlug(title: string, isFirst: boolean): keyof SiteData {
   const lower = title.toLowerCase();
-  if (isFirst) return "home";
-  if (lower.includes("games")) return "games";
+  if (isFirst) {
+    return "home";
+  }
+  // Mobile and website pages should be detected before games
   if (
     lower.includes("app") ||
     lower.includes("website") ||
     lower.includes("mobile")
-  )
+  ) {
     return "app";
-  if (lower.includes("login")) return "login";
-  if (lower.includes("bonus")) return "bonus";
+  }
+  if (lower.includes("games") || lower.includes("game")) {
+    return "games";
+  }
+  if (lower.includes("bonus")) {
+    return "bonus";
+  }
+  if (lower.includes("login")) {
+    return "login";
+  }
   console.warn(`Unknown page type for title "${title}", defaulting to home`);
   return "home";
 }
@@ -144,6 +154,11 @@ export function parseMarkdownToSiteData(content: string): SiteData {
       if (dMatch) {
         const titleText = tMatch[1].trim();
         const slug = detectSlug(titleText, metas.length === 0);
+        // Skip duplicate slug entries
+        if (metas.length > 0 && metas[metas.length - 1].slug === slug) {
+          i = j;
+          continue;
+        }
         metas.push({
           slug,
           title: titleText,
