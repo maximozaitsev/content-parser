@@ -46,11 +46,11 @@ function detectSlug(title: string, isFirst: boolean): keyof SiteData {
   if (lower.includes("games") || lower.includes("game")) {
     return "games";
   }
-  if (lower.includes("bonus")) {
-    return "bonus";
-  }
   if (lower.includes("login")) {
     return "login";
+  }
+  if (lower.includes("bonus")) {
+    return "bonus";
   }
   console.warn(`Unknown page type for title "${title}", defaulting to home`);
   return "home";
@@ -199,15 +199,30 @@ export function parseMarkdownToSiteData(content: string): SiteData {
   }
   console.log(`DEBUG: metas collected (${metas.length}):`, metas);
 
-  if (metas.length !== 5) {
-    console.warn("Failed to detect all page metadata. Detected headings:");
-    // вывести все заголовки H2
+  // Verify we have all required pages, regardless of their order
+  const requiredSlugs: (keyof SiteData)[] = [
+    "home",
+    "games",
+    "app",
+    "bonus",
+    "login",
+  ];
+  const foundSlugs = metas.map((m) => m.slug);
+  const missing = requiredSlugs.filter((s) => !foundSlugs.includes(s));
+  if (missing.length > 0) {
+    console.warn(
+      `Missing page metadata for slugs: ${missing.join(
+        ", "
+      )}. Detected headings:`
+    );
     const h2s = lines
       .filter((l) => /^##\s+/.test(l))
       .map((l) => l.replace(/^##\s+/, "").trim());
     console.warn(h2s);
     throw new Error(
-      "parseMarkdownToSiteData: Metadata detection incomplete. Please verify H2 headings."
+      `parseMarkdownToSiteData: Missing metadata for pages: ${missing.join(
+        ", "
+      )}`
     );
   }
 
