@@ -1,6 +1,7 @@
 // markdownParserMulti.ts
 import fs from "fs";
 import path from "path";
+import readline from "readline";
 
 /**
  * Структуры данных для мультистраничного сайта
@@ -136,7 +137,9 @@ function parseBlocks(lines: string[]): Block[] {
 /**
  * Основной парсер: из Markdown-строки собирает SiteData
  */
-export function parseMarkdownToSiteData(content: string): SiteData {
+export async function parseMarkdownToSiteData(
+  content: string
+): Promise<SiteData> {
   // Удаляем картинки
   const cleaned = removeImages(content);
   const lines = cleaned.split(/\r?\n/);
@@ -199,7 +202,7 @@ export function parseMarkdownToSiteData(content: string): SiteData {
   }
   console.log(`DEBUG: metas collected (${metas.length}):`, metas);
 
-  // Verify we have all required pages, regardless of their order
+  // If not all 5 pages were found, ask user to assign H1 headings manually
   const requiredSlugs: (keyof SiteData)[] = [
     "home",
     "games",
@@ -210,20 +213,66 @@ export function parseMarkdownToSiteData(content: string): SiteData {
   const foundSlugs = metas.map((m) => m.slug);
   const missing = requiredSlugs.filter((s) => !foundSlugs.includes(s));
   if (missing.length > 0) {
-    console.warn(
-      `Missing page metadata for slugs: ${missing.join(
-        ", "
-      )}. Detected headings:`
+    console.log(
+      "Could not auto-detect all pages. Please assign H1 headings to each page slug."
     );
-    const h2s = lines
-      .filter((l) => /^##\s+/.test(l))
-      .map((l) => l.replace(/^##\s+/, "").trim());
-    console.warn(h2s);
-    throw new Error(
-      `parseMarkdownToSiteData: Missing metadata for pages: ${missing.join(
-        ", "
-      )}`
-    );
+    const h1Headings = lines
+      .map((l, idx) => ({ line: l, idx }))
+      .filter((o) => /^#\s+/.test(o.line))
+      .map((o) => o.line.replace(/^#\s+/, "").trim());
+    h1Headings.forEach((h, i) => console.log(`${i + 1}) ${h}`));
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    const ask = (q: string) =>
+      new Promise<string>((res) => rl.question(q, res));
+    const manualMetas: MetaPos[] = [];
+    for (const slug of requiredSlugs) {
+      const answer = await ask(`Select the number for slug "${slug}": `);
+      const index = parseInt(answer, 10) - 1;
+      const heading = h1Headings[index];
+      const lineIdx = lines.findIndex(
+        (l) => l.includes(heading) && /^#\s+/.test(l)
+      );
+      // Find Title and Description above H1
+      let titleLine = "";
+      let descLine = "";
+      for (let k = lineIdx - 1; k >= 0; k--) {
+        if (!titleLine) {
+          const t = lines[k].match(titlePattern);
+          if (t) {
+            titleLine = t[1].trim();
+            continue;
+          }
+        } else if (!descLine) {
+          const d = lines[k].match(descPattern);
+          if (d) {
+            descLine = d[1].trim();
+            break;
+          }
+        }
+      }
+      const cleanTitle = titleLine
+        .replace(/^\*{1,2}/, "")
+        .replace(/\*{1,2}$/, "")
+        .replace(/\\/g, "")
+        .trim();
+      const cleanDesc = descLine
+        .replace(/^\*{1,2}/, "")
+        .replace(/\*{1,2}$/, "")
+        .replace(/\\/g, "")
+        .trim();
+      manualMetas.push({
+        slug,
+        title: cleanTitle,
+        description: cleanDesc,
+        index: lineIdx,
+      });
+    }
+    rl.close();
+    metas.length = 0;
+    manualMetas.forEach((m) => metas.push(m));
   }
 
   // Составляем фрагменты по страницам
@@ -271,7 +320,7 @@ export async function parseFileMulti(
     return null;
   }
   try {
-    return parseMarkdownToSiteData(content);
+    return await parseMarkdownToSiteData(content);
   } catch (err) {
     console.error(err);
     return null;
