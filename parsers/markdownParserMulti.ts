@@ -131,7 +131,24 @@ function parseBlocks(lines: string[]): Block[] {
     listBlock = null;
   }
 
-  return blocks;
+  // Merge consecutive list blocks of the same style into one
+  const mergedBlocks: Block[] = [];
+  for (const block of blocks) {
+    if (
+      block.type === "list" &&
+      mergedBlocks.length > 0 &&
+      mergedBlocks[mergedBlocks.length - 1].type === "list" &&
+      mergedBlocks[mergedBlocks.length - 1].style === block.style
+    ) {
+      // Append items to the previous list
+      mergedBlocks[mergedBlocks.length - 1].items = (
+        mergedBlocks[mergedBlocks.length - 1].items || []
+      ).concat(block.items || []);
+    } else {
+      mergedBlocks.push(block);
+    }
+  }
+  return mergedBlocks;
 }
 
 /**
