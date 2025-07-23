@@ -9,7 +9,15 @@ import mammoth from "mammoth";
 function convertMarkdownFormatting(text: string): string {
   return text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\\-(?=\s|$)/g, "-");
+    .replace(/\\-(?=\s|$)/g, "-")
+    .replace(/\\/g, "");
+}
+
+/**
+ * Удаляет Markdown-жирный шрифт (**...**) без сохранения тэгов.
+ */
+function stripBoldMarkdown(text: string): string {
+  return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\\/g, "");
 }
 
 /**
@@ -53,7 +61,7 @@ export function parseMarkdownToJSON(content: string) {
     if (trimmed.startsWith("# ")) {
       foundH1 = true;
       // Заголовок первого уровня используем как title
-      data.title = convertMarkdownFormatting(trimmed.replace("# ", "").trim());
+      data.title = stripBoldMarkdown(trimmed.replace("# ", "").trim());
     } else if (trimmed.startsWith("## ")) {
       // Сохраняем предыдущую секцию (если она есть)
       if (currentSection !== null) {
@@ -66,9 +74,7 @@ export function parseMarkdownToJSON(content: string) {
         }
       }
       // Новый заголовок h2
-      const sectionTitle = convertMarkdownFormatting(
-        trimmed.replace("## ", "").trim()
-      );
+      const sectionTitle = stripBoldMarkdown(trimmed.replace("## ", "").trim());
       h2Headers.push(sectionTitle);
 
       // Определяем изменение режима в зависимости от ключевых слов
@@ -101,7 +107,7 @@ export function parseMarkdownToJSON(content: string) {
       sectionContent.push({
         type: "heading",
         level: 3,
-        text: convertMarkdownFormatting(trimmed.replace("### ", "").trim()),
+        text: stripBoldMarkdown(trimmed.replace("### ", "").trim()),
       });
     } else if (
       /^\d+\./.test(trimmed) ||

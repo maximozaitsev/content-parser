@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "parse:file": "ts-node parse.ts --file",
-    "parse:url": "ts-node parse.ts --url"
+    "parse:url": "ts-node parse.ts --url",
+    "parse:multi": "ts-node parse-multi.ts"
   },
   "keywords": [],
   "author": "",

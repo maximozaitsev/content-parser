@@ -8,9 +8,10 @@ const ADVANTAGES_KEYWORDS = [
   "Avantages",
   "Fördelar",
 ];
-const GAMES_KEYWORDS = ["Games", "Juegos", "Spiele", "Jeux", "Spel"];
+const GAMES_KEYWORDS = ["Games", "Game", "Juegos", "Spiele", "Jeux", "Spel"];
 const BONUS_KEYWORDS = ["bonus", "promo"];
 const SUPPORT_KEYWORDS = ["support", "soporte", "unterstützung", "soutien"];
+const FAQ_KEYWORDS = ["faq", "frequently asked questions"];
 
 /**
  * Запрос ввода у пользователя через консоль с отображением доступных заголовков.
@@ -169,6 +170,7 @@ export async function assembleBlocks(parsed: {
       const lowerDeposit = depositHeading.toLowerCase();
       const isDeposit = [
         "deposit",
+        "depositing",
         "depósito",
         "dépôt",
         "einzahlung",
@@ -189,6 +191,7 @@ export async function assembleBlocks(parsed: {
         const lowerWithdrawal = withdrawalHeading.toLowerCase();
         const isWithdrawal = [
           "withdrawal",
+          "withdrawing",
           "retiro",
           "retrait",
           "abhebung",
@@ -251,7 +254,8 @@ export async function assembleBlocks(parsed: {
   let faqCandidate: string | null = null;
   for (let i = h2Headers.length - 1; i >= 0; i--) {
     const header = h2Headers[i];
-    if (header.toLowerCase().includes("faq") && header in data.sections) {
+    const headerLower = header.toLowerCase();
+    if (FAQ_KEYWORDS.some((kw) => headerLower.includes(kw)) && header in data.sections) {
       faqCandidate = header;
       break;
     }
@@ -261,7 +265,7 @@ export async function assembleBlocks(parsed: {
     if (sectionsHeadersForFaq.length > 0) {
       const userFaqHeader = await askUserForHeader(
         sectionsHeadersForFaq,
-        "\nВ разделе sections не найден заголовок, содержащий слово 'faq'.\nВыберите заголовок, который нужно принять за блок faq: "
+        "\nВ разделе sections не найден заголовок, содержащий 'faq' или 'frequently asked questions'.\nВыберите заголовок, который нужно принять за блок faq: "
       );
       if (sectionsHeadersForFaq.includes(userFaqHeader)) {
         faqCandidate = userFaqHeader;
