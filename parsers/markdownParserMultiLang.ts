@@ -87,6 +87,7 @@ export function parseMarkdownToJSON(content: string) {
         "Ventajas", // ES
         "Avantages", // FR
         "Fördelar", // SV (optional)
+        "Vantaggi",
       ];
       if (
         advantagesKeywords.some((keyword) =>
