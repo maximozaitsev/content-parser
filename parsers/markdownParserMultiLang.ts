@@ -4,10 +4,13 @@ import path from "path";
 import mammoth from "mammoth";
 
 // Регэксы для мета-полей (Title/Description с вариациями Meta/SEO и допускающими **жирное**)
+// Поддерживаемые ключевые слова:
+//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo"
+//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione"
 export const titlePattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*title\s*(?:\*\*?)?\s*:\s*(.+)$/i;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:title|titel|título|titre|titolo)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 export const descPattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*description\s*(?:\*\*?)?\s*:\s*(.+)$/i;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).
