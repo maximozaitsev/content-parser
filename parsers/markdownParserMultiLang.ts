@@ -3,6 +3,12 @@ import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
 
+// Регэксы для мета-полей (Title/Description с вариациями Meta/SEO и допускающими **жирное**)
+export const titlePattern =
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*title\s*(?:\*\*?)?\s*:\s*(.+)$/i;
+export const descPattern =
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*description\s*(?:\*\*?)?\s*:\s*(.+)$/i;
+
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).
  */
@@ -28,6 +34,8 @@ function stripBoldMarkdown(text: string): string {
 export function parseMarkdownToJSON(content: string) {
   const data: any = {
     title: "",
+    "meta-title": "",
+    "meta-description": "",
     intro: [],
     about: {},
     advantages: {},
@@ -45,15 +53,30 @@ export function parseMarkdownToJSON(content: string) {
 
   const lines = content.split("\n");
 
+  let metaTitleSet = false;
+  let metaDescSet = false;
+
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Если еще не найден заголовок h1, пропускаем первые непустые параграфы
+    // До первого H1: первые два непустых параграфа трактуем как meta‑title и meta‑description
     if (!foundH1 && !trimmed.startsWith("# ")) {
       if (trimmed) {
-        if (skippedParagraphs.length < 2) {
-          skippedParagraphs.push(convertMarkdownFormatting(trimmed));
+        if (!metaTitleSet) {
+          const mTitle = trimmed.match(titlePattern);
+          const value = mTitle ? mTitle[1].trim() : trimmed;
+          data["meta-title"] = stripBoldMarkdown(value);
+          metaTitleSet = true;
+          continue;
         }
+        if (!metaDescSet) {
+          const mDesc = trimmed.match(descPattern);
+          const value = mDesc ? mDesc[1].trim() : trimmed;
+          data["meta-description"] = stripBoldMarkdown(value);
+          metaDescSet = true;
+          continue;
+        }
+        // Любые третьи и далее преамбулы до H1 игнорируем
         continue;
       }
     }

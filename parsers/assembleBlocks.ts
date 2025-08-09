@@ -75,6 +75,27 @@ function askUserForHeader(
   });
 }
 
+async function moveFirstMatchingSectionToAbout(
+  data: any,
+  keywords: readonly string[],
+  promptText: string
+): Promise<string | null> {
+  const sectionKeys = Object.keys(data.sections);
+  if (sectionKeys.length === 0) return null;
+
+  let heading = sectionKeys.find((h) => includesAny(h, keywords)) || null;
+  if (!heading) {
+    const userHeader = await askUserForHeader(sectionKeys, `\n${promptText}`);
+    if (sectionKeys.includes(userHeader)) heading = userHeader;
+  }
+  if (heading) {
+    data.about[heading] = data.sections[heading];
+    delete data.sections[heading];
+    return heading;
+  }
+  return null;
+}
+
 /**
  * Функция сборки итоговой структуры из результата базового парсинга.
  * Производит перераспределение разделов и формирует итоговый объект с требуемым порядком ключей.
@@ -190,51 +211,18 @@ export async function assembleBlocks(parsed: {
     data["bonuses-and-promotions"] = {};
   }
 
-  // --- Блок: распределение Deposit и Withdrawal в about ---
-  if (
-    data["bonuses-and-promotions"] &&
-    Object.keys(data["bonuses-and-promotions"]).length > 0
-  ) {
-    const bonusHeading = Object.keys(data["bonuses-and-promotions"])[0];
-    const bonusIndex = h2Headers.indexOf(bonusHeading);
-    if (bonusIndex !== -1 && bonusIndex + 1 < h2Headers.length) {
-      let depositHeading = h2Headers[bonusIndex + 1];
-      const isDeposit = includesAny(depositHeading, KEYWORDS.deposit);
-      if (!isDeposit) {
-        depositHeading = await askUserForHeader(
-          h2Headers,
-          "\nВведите заголовок для Deposit, содержащий слово с корнем 'deposit' (или его аналог): "
-        );
-      }
-      if (data.sections[depositHeading]) {
-        data.about[depositHeading] = data.sections[depositHeading];
-        delete data.sections[depositHeading];
-      }
-      if (bonusIndex + 2 < h2Headers.length) {
-        let withdrawalHeading = h2Headers[bonusIndex + 2];
-        const isWithdrawal = includesAny(
-          withdrawalHeading,
-          KEYWORDS.withdrawal
-        );
-        if (!isWithdrawal) {
-          withdrawalHeading = await askUserForHeader(
-            h2Headers,
-            "\nВведите заголовок для Withdrawal, содержащий слово с корнем 'withdrawal' (или его аналог): "
-          );
-        }
-        if (data.sections[withdrawalHeading]) {
-          data.about[withdrawalHeading] = data.sections[withdrawalHeading];
-          delete data.sections[withdrawalHeading];
-        }
-      }
-    } else {
-      console.log(
-        "Не удалось определить Deposit и Withdrawal, так как после бонусного раздела нет достаточного количества заголовков."
-      );
-    }
-  } else {
-    console.log(
-      "Блок bonuses-and-promotions не найден, невозможно автоматически определить Deposit и Withdrawal."
+  // --- Блок: распределение Deposit и Withdrawal в about (без зависимости от бонусного блока) ---
+  {
+    await moveFirstMatchingSectionToAbout(
+      data,
+      KEYWORDS.deposit,
+      "Введите заголовок для Deposit (или выберите), содержащий слово с корнем 'deposit' (или его аналог): "
+    );
+
+    await moveFirstMatchingSectionToAbout(
+      data,
+      KEYWORDS.withdrawal,
+      "Введите заголовок для Withdrawal (или выберите), содержащий слово с корнем 'withdrawal' (или его аналог): "
     );
   }
 
@@ -299,6 +287,8 @@ export async function assembleBlocks(parsed: {
 
   // --- Итоговая сборка: упорядочиваем ключи ---
   const orderedData = {
+    "meta-title": data["meta-title"],
+    "meta-description": data["meta-description"],
     title: data.title,
     intro: data.intro,
     about: data.about,

@@ -31,6 +31,8 @@ ensureDirectories();
 // Режим simple – плоская группировка по h2, с сохранением h1/intro
 function simpleGrouping(parsed: { data: any }): any {
   const result: any = {
+    "meta-title": parsed.data["meta-title"] || "",
+    "meta-description": parsed.data["meta-description"] || "",
     title: parsed.data.title || "",
     intro: parsed.data.intro || [],
     content: {},
