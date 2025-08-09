@@ -28,7 +28,6 @@ function stripBoldMarkdown(text: string): string {
 export function parseMarkdownToJSON(content: string) {
   const data: any = {
     title: "",
-    description: "",
     intro: [],
     about: {},
     advantages: {},
@@ -43,7 +42,6 @@ export function parseMarkdownToJSON(content: string) {
   const h2Headers: string[] = [];
   const skippedParagraphs: string[] = [];
   let foundH1 = false;
-  let descriptionSet = false;
 
   const lines = content.split("\n");
 
@@ -81,12 +79,11 @@ export function parseMarkdownToJSON(content: string) {
 
       // Определяем изменение режима в зависимости от ключевых слов
       const advantagesKeywords = [
-        "Advantages", // EN
-        "Vantaggi", // IT
-        "Vorteile", // DE
-        "Ventajas", // ES
-        "Avantages", // FR
-        "Fördelar", // SV (optional)
+        "Advantages",
+        "Ventajas",
+        "Vorteile",
+        "Avantages",
+        "Fördelar",
         "Vantaggi",
       ];
       if (
@@ -135,24 +132,6 @@ export function parseMarkdownToJSON(content: string) {
       }
       listBlock.items.push(itemText);
     } else if (trimmed) {
-      const isDescriptionLine = /^Description\s*:/i.test(trimmed);
-      if (foundH1 && !descriptionSet) {
-        if (isDescriptionLine) {
-          data.description = stripBoldMarkdown(
-            trimmed.replace(/^Description\s*:/i, "").trim()
-          );
-          descriptionSet = true;
-        } else if (
-          !trimmed.startsWith("#") &&
-          !/^\d+\./.test(trimmed) &&
-          !trimmed.startsWith("* ") &&
-          !trimmed.startsWith("- ")
-        ) {
-          data.description = stripBoldMarkdown(trimmed);
-          descriptionSet = true;
-        }
-      }
-
       const paragraph = {
         type: "paragraph",
         text: convertMarkdownFormatting(trimmed),
