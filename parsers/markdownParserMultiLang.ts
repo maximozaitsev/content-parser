@@ -5,12 +5,12 @@ import mammoth from "mammoth";
 
 // Регэксы для мета-полей (Title/Description с вариациями Meta/SEO и допускающими **жирное**)
 // Поддерживаемые ключевые слова:
-//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo"
-//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione"
+//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo", pl "Tytuł", el "Τίτλος"
+//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione", pt "Descrição", pl "Opis", el "Περιγραφή", nl "Beschrijving"
 export const titlePattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:title|titel|título|titre|titolo)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:title|titel|título|titre|titolo|tytuł|τίτλος)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 export const descPattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione|descrição|opis|περιγραφή|beschrijving)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).
@@ -105,12 +105,16 @@ export function parseMarkdownToJSON(content: string) {
 
       // Определяем изменение режима в зависимости от ключевых слов
       const advantagesKeywords = [
-        "Advantages",
-        "Ventajas",
-        "Vorteile",
-        "Avantages",
-        "Fördelar",
-        "Vantaggi",
+        "Advantages", // EN / CA
+        "Ventajas", // ES
+        "Vorteile", // DE / CH
+        "Avantages", // FR / BE / CH
+        "Fördelar", // SV
+        "Vantaggi", // IT / CH
+        "Vantagens", // PT / PT-BR
+        "Zalety", // PL
+        "Πλεονεκτήματα", // GR
+        "Voordelen", // NL (BE support)
       ];
       if (
         advantagesKeywords.some((keyword) =>
