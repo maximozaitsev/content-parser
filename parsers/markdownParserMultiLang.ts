@@ -5,12 +5,12 @@ import mammoth from "mammoth";
 
 // Регэксы для мета-полей (Title/Description с вариациями Meta/SEO и допускающими **жирное**)
 // Поддерживаемые ключевые слова:
-//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo", pl "Tytuł", el "Τίτλος"
-//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione", pt "Descrição", pl "Opis", el "Περιγραφή", nl "Beschrijving"
+//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo", pl "Tytuł", el "Τίτλος", nl "Titel", se "Titel"
+//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione", pt "Descrição", pl "Opis", el "Περιγραφή", nl "Beschrijving", se "Beskrivning"
 export const titlePattern =
   /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:title|titel|título|titre|titolo|tytuł|τίτλος)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 export const descPattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione|descrição|opis|περιγραφή|beschrijving)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione|descrição|opis|περιγραφή|beschrijving|beskrivning)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).

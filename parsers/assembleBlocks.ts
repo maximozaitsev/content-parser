@@ -33,7 +33,6 @@ const KEYWORDS = {
   bonus: [
     "bonus",
     "promo",
-    "bonus",
     "bono",
     "bonos",
     "bonificação",
@@ -46,6 +45,10 @@ const KEYWORDS = {
     "aktionen",
     "promoties",
     "προσφορές",
+    "bonusar",
+    "kampanj",
+    "kampanjer",
+    "bonussen",
   ],
   support: [
     "support",
@@ -66,6 +69,8 @@ const KEYWORDS = {
     "klantenservice",
     "υποστήριξη",
     "στήριξη",
+    "kundtjänst",
+    "kundsupport",
   ],
   faq: [
     "faq",
@@ -79,6 +84,7 @@ const KEYWORDS = {
     "najczęściej zadawane pytania",
     "veelgestelde vragen",
     "συχνές ερωτήσεις",
+    "vanliga frågor",
   ],
   deposit: [
     "deposit",
@@ -87,6 +93,8 @@ const KEYWORDS = {
     "dépôt",
     "einzahlung",
     "insättningsmetoder",
+    "insättning",
+    "insättningar",
     "deposito",
     "depósito",
     "wpłata",
@@ -112,6 +120,9 @@ const KEYWORDS = {
     "opname",
     "uitbetaling",
     "ανάληψη",
+    "utbetalning",
+    "utbetalningar",
+    "uttagsmetoder",
   ],
 } as const;
 
