@@ -5,12 +5,12 @@ import mammoth from "mammoth";
 
 // Регэксы для мета-полей (Title/Description с вариациями Meta/SEO и допускающими **жирное**)
 // Поддерживаемые ключевые слова:
-//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo", pl "Tytuł", el "Τίτλος", nl "Titel", se "Titel"
-//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione", pt "Descrição", pl "Opis", el "Περιγραφή", nl "Beschrijving", se "Beskrivning"
+//  Title: en "Title", de "Titel", es "Título", fr "Titre", it "Titolo", pl "Tytuł", el "Τίτλος", nl "Titel", se "Titel", ro "Titlu", no "Tittel", fi "Otsikko"
+//  Description: en "Description", de "Beschreibung", es "Descripción", fr "Description", it "Descrizione", pt "Descrição", pl "Opis", el "Περιγραφή", nl "Beschrijving", se "Beskrivning", ro "Descriere", no "Beskrivelse", fi "Kuvaus"
 export const titlePattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:title|titel|título|titre|titolo|tytuł|τίτλος)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:title|titel|título|titre|titolo|tytuł|τίτλος|titlu|tittel|otsikko)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 export const descPattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione|descrição|opis|περιγραφή|beschrijving|beskrivning)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)?\s*(?:description|beschreibung|descripción|descrizione|descrição|opis|περιγραφή|beschrijving|beskrivning|descriere|beskrivelse|kuvaus)\s*(?:\*\*?)?\s*[:\-–]\s*(.+)$/iu;
 
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).
@@ -67,15 +67,15 @@ export function parseMarkdownToJSON(content: string) {
       if (trimmed) {
         if (!metaTitleSet) {
           const mTitle = trimmed.match(titlePattern);
-          const value = mTitle ? mTitle[1].trim() : trimmed;
-          data["meta-title"] = stripBoldMarkdown(value);
+          const value = mTitle ? stripBoldMarkdown(mTitle[1].trim()) : stripBoldMarkdown(trimmed);
+          data["meta-title"] = value;
           metaTitleSet = true;
           continue;
         }
         if (!metaDescSet) {
           const mDesc = trimmed.match(descPattern);
-          const value = mDesc ? mDesc[1].trim() : trimmed;
-          data["meta-description"] = stripBoldMarkdown(value);
+          const value = mDesc ? stripBoldMarkdown(mDesc[1].trim()) : stripBoldMarkdown(trimmed);
+          data["meta-description"] = value;
           metaDescSet = true;
           continue;
         }

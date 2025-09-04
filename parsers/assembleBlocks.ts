@@ -14,6 +14,9 @@ const KEYWORDS = {
     "Zalety",
     "Πλεονεκτήματα",
     "Voordelen",
+    "Edut",
+    "Fordeler",
+    "Avantaje",
   ],
   games: [
     "Games",
@@ -29,6 +32,9 @@ const KEYWORDS = {
     "Gra",
     "Spellen",
     "Παιχνίδια",
+    "Pelit",
+    "Spill",
+    "Jocuri",
   ],
   bonus: [
     "bonus",
@@ -49,6 +55,12 @@ const KEYWORDS = {
     "kampanj",
     "kampanjer",
     "bonussen",
+    "Bonukset",
+    "Tarjoukset",
+    "Bonuser",
+    "Kampanjer",
+    "Bonusuri",
+    "Promoții",
   ],
   support: [
     "support",
@@ -71,6 +83,13 @@ const KEYWORDS = {
     "στήριξη",
     "kundtjänst",
     "kundsupport",
+    "Tuki",
+    "Asiakastuki",
+    "Kundestøtte",
+    "Brukerstøtte",
+    "Hjelp",
+    "Suport",
+    "Asistență clienți",
   ],
   faq: [
     "faq",
@@ -85,6 +104,11 @@ const KEYWORDS = {
     "veelgestelde vragen",
     "συχνές ερωτήσεις",
     "vanliga frågor",
+    "UKK",
+    "Usein kysytyt kysymykset",
+    "OSS",
+    "Ofte stilte spørsmål",
+    "Întrebări frecvente",
   ],
   deposit: [
     "deposit",
@@ -102,6 +126,9 @@ const KEYWORDS = {
     "storting",
     "storten",
     "κατάθεση",
+    "Talletus",
+    "Innskudd",
+    "Depunere",
   ],
   withdrawal: [
     "withdrawal",
@@ -123,6 +150,9 @@ const KEYWORDS = {
     "utbetalning",
     "utbetalningar",
     "uttagsmetoder",
+    "Nosto",
+    "Uttak",
+    "Retragere",
   ],
 } as const;
 
