@@ -202,8 +202,21 @@ export async function parseMarkdownToSiteData(
           .replace(/\\/g, "")
           .trim();
         const slug = detectSlug(cleanTitle, metas.length === 0);
-        // Skip duplicate slug entries
-        if (metas.length > 0 && metas[metas.length - 1].slug === slug) {
+        // Skip duplicate slug entries only if we already have all required slugs
+        const requiredSlugs: (keyof SiteData)[] = ["home", "games", "app", "bonus", "login"];
+        const foundSlugs = metas.map((m) => m.slug);
+        const uniqueSlugs = [...new Set(foundSlugs)];
+        const hasAllRequired = requiredSlugs.every(s => uniqueSlugs.includes(s));
+        
+        // If we have all required slugs and this is a duplicate, skip it
+        if (hasAllRequired && foundSlugs.includes(slug)) {
+          i = j;
+          continue;
+        }
+        
+        // If we have a duplicate slug but not all required slugs, skip it to force manual assignment
+        if (foundSlugs.includes(slug) && !hasAllRequired) {
+          console.log(`DEBUG: Skipping duplicate slug "${slug}" to force manual assignment`);
           i = j;
           continue;
         }
@@ -228,7 +241,8 @@ export async function parseMarkdownToSiteData(
     "login",
   ];
   const foundSlugs = metas.map((m) => m.slug);
-  const missing = requiredSlugs.filter((s) => !foundSlugs.includes(s));
+  const uniqueSlugs = [...new Set(foundSlugs)];
+  const missing = requiredSlugs.filter((s) => !uniqueSlugs.includes(s));
   if (missing.length > 0) {
     console.log(
       "Could not auto-detect all pages. Please assign H1 headings to each page slug."
@@ -256,16 +270,17 @@ export async function parseMarkdownToSiteData(
       let titleLine = "";
       let descLine = "";
       for (let k = lineIdx - 1; k >= 0; k--) {
+        if (!descLine) {
+          const d = lines[k].match(descPattern);
+          if (d) {
+            descLine = d[1].trim();
+            continue;
+          }
+        }
         if (!titleLine) {
           const t = lines[k].match(titlePattern);
           if (t) {
             titleLine = t[1].trim();
-            continue;
-          }
-        } else if (!descLine) {
-          const d = lines[k].match(descPattern);
-          if (d) {
-            descLine = d[1].trim();
             break;
           }
         }
@@ -284,7 +299,7 @@ export async function parseMarkdownToSiteData(
         slug,
         title: cleanTitle,
         description: cleanDesc,
-        index: lineIdx,
+        index: lineIdx, // Start from the H1 heading
       });
     }
     rl.close();
@@ -295,8 +310,24 @@ export async function parseMarkdownToSiteData(
   // Составляем фрагменты по страницам
   const siteData = {} as SiteData;
   metas.forEach((meta, idx) => {
-    const start = meta.index;
-    const end = metas[idx + 1]?.index ?? lines.length;
+    // Find the H1 heading for this page
+    let start = meta.index;
+    for (let i = meta.index; i < lines.length; i++) {
+      if (lines[i].match(/^#\s+/)) {
+        start = i;
+        break;
+      }
+    }
+    
+    // Find the next H1 heading or end of file
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (lines[i].match(/^#\s+/)) {
+        end = i;
+        break;
+      }
+    }
+    console.log(`DEBUG: Processing page "${meta.slug}" from line ${start + 1} to ${end} (${end - start} lines)`);
     const fragment = lines.slice(start, end);
     const blocksAll = parseBlocks(fragment);
     const blocks = blocksAll.filter((b) => {
@@ -308,6 +339,7 @@ export async function parseMarkdownToSiteData(
       }
       return true;
     });
+    console.log(`DEBUG: Page "${meta.slug}" has ${blocks.length} blocks`);
     siteData[meta.slug] = {
       title: meta.title,
       description: meta.description,
