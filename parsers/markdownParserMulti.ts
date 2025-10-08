@@ -152,174 +152,216 @@ function parseBlocks(lines: string[]): Block[] {
 }
 
 /**
+ * Извлекает метаданные (Title + Description) над H1 заголовком
+ */
+function extractMetadataAboveH1(lines: string[], h1Pos: number): { title: string; description: string } | null {
+  let titleLine = "";
+  let descLine = "";
+  
+  for (let k = h1Pos - 1; k >= 0; k--) {
+    if (!descLine) {
+      const d = lines[k].match(descPattern);
+      if (d) {
+        descLine = d[1].trim();
+        continue;
+      }
+    }
+    if (!titleLine) {
+      const t = lines[k].match(titlePattern);
+      if (t) {
+        titleLine = t[1].trim();
+        break;
+      }
+    }
+  }
+  
+  if (titleLine && descLine) {
+    const cleanTitle = titleLine
+      .replace(/^\*{1,2}\s*/, "")
+      .replace(/\s*\*{1,2}$/, "")
+      .replace(/\\/g, "")
+      .trim();
+    const cleanDesc = descLine
+      .replace(/^\*{1,2}\s*/, "")
+      .replace(/\s*\*{1,2}$/, "")
+      .replace(/\\/g, "")
+      .trim();
+    return { title: cleanTitle, description: cleanDesc };
+  }
+  return null;
+}
+
+/**
+ * Извлекает контент под H1 до следующего H1 или конца файла
+ */
+function extractContentUnderH1(lines: string[], h1Pos: number): string[] {
+  const content: string[] = [];
+  for (let i = h1Pos; i < lines.length; i++) {
+    // Если встретили следующий H1, останавливаемся
+    if (i > h1Pos && lines[i] && lines[i].match(/^#\s+/)) {
+      break;
+    }
+    content.push(lines[i]);
+  }
+  return content;
+}
+
+/**
  * Основной парсер: из Markdown-строки собирает SiteData
  */
 export async function parseMarkdownToSiteData(
   content: string
 ): Promise<SiteData> {
-  // Удаляем картинки
+  // ЭТАП 1: Подготовка и очистка
   const cleaned = removeImages(content);
   const lines = cleaned.split(/\r?\n/);
 
-  // Собираем пары метаданных
+  // Найти все H1 заголовки и их позиции
+  const h1Positions: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(/^#\s+/)) {
+      h1Positions.push(i);
+    }
+  }
+  console.log(`DEBUG: Found ${h1Positions.length} H1 headings at lines:`, h1Positions.map(p => p + 1));
+
+  // ЭТАП 2: Классификация кейса
+  const h1Count = h1Positions.length;
+  const requiredSlugs: (keyof SiteData)[] = ["home", "games", "app", "bonus", "login"];
+  
   interface MetaPos {
     slug: keyof SiteData;
     title: string;
     description: string;
-    index: number;
+    h1Index: number;
   }
-  const metas: MetaPos[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const tMatch = lines[i].match(titlePattern);
-    if (tMatch) {
-      console.log(
-        `DEBUG: Found titlePattern at line ${i + 1}: "${lines[i].trim()}"`
-      );
-      // Skip blank lines to find description
-      let j = i + 1;
-      while (j < lines.length && lines[j].trim() === "") {
-        j++;
-      }
-      const dMatch = lines[j]?.match(descPattern);
-      if (!dMatch) {
-        console.warn(
-          `DEBUG: No description match at line ${j + 1}: "${lines[j]?.trim()}"`
-        );
-      }
-      if (dMatch) {
-        const titleText = tMatch[1].trim();
-        // Strip bold Markdown from title
-        const cleanTitle = titleText
-          .replace(/^\*{1,2}\s*/, "")
-          .replace(/\s*\*{1,2}$/, "")
-          .replace(/\\/g, "")
-          .trim();
-        // Strip bold Markdown from description
-        const descText = dMatch[1].trim();
-        const cleanDesc = descText
-          .replace(/^\*{1,2}\s*/, "")
-          .replace(/\s*\*{1,2}$/, "")
-          .replace(/\\/g, "")
-          .trim();
-        const slug = detectSlug(cleanTitle, metas.length === 0);
-        // Skip duplicate slug entries
-        if (metas.length > 0 && metas[metas.length - 1].slug === slug) {
-          i = j;
-          continue;
-        }
+  
+  let metas: MetaPos[] = [];
+
+  // ЭТАП 3: Автодетект (КЕЙС 1) - только если 5 заголовков
+  if (h1Count === 5) {
+    console.log("DEBUG: Case 1/2 - 5 headers found, trying automatic detection");
+    
+    for (const h1Pos of h1Positions) {
+      const metadata = extractMetadataAboveH1(lines, h1Pos);
+      if (metadata) {
+        const slug = detectSlug(metadata.title, metas.length === 0);
         metas.push({
           slug,
-          title: cleanTitle,
-          description: cleanDesc,
-          index: j + 1,
+          title: metadata.title,
+          description: metadata.description,
+          h1Index: h1Pos,
         });
-        i = j; // skip over description
+        console.log(`DEBUG: Auto-detected "${metadata.title}" -> ${slug}`);
       }
     }
-  }
-  console.log(`DEBUG: metas collected (${metas.length}):`, metas);
 
-  // If not all 5 pages were found, ask user to assign H1 headings manually
-  const requiredSlugs: (keyof SiteData)[] = [
-    "home",
-    "games",
-    "app",
-    "bonus",
-    "login",
-  ];
-  const foundSlugs = metas.map((m) => m.slug);
-  const missing = requiredSlugs.filter((s) => !foundSlugs.includes(s));
-  if (missing.length > 0) {
-    console.log(
-      "Could not auto-detect all pages. Please assign H1 headings to each page slug."
-    );
-    const h1Headings = lines
-      .map((l, idx) => ({ line: l, idx }))
-      .filter((o) => /^#\s+/.test(o.line))
-      .map((o) => o.line.replace(/^#\s+/, "").trim());
-    h1Headings.forEach((h, i) => console.log(`${i + 1}) ${h}`));
+    // Проверяем, все ли slug'и найдены автоматически и уникально
+    const foundSlugs = metas.map(m => m.slug);
+    const uniqueSlugs = [...new Set(foundSlugs)];
+    const missingSlugs = requiredSlugs.filter(s => !uniqueSlugs.includes(s));
+    
+    if (missingSlugs.length === 0 && uniqueSlugs.length === 5) {
+      console.log("DEBUG: Case 1 - All slugs auto-detected successfully");
+    } else {
+      console.log(`DEBUG: Case 2 - Missing/duplicate slugs: ${missingSlugs.join(', ')}, switching to manual mode`);
+      metas = []; // Сбрасываем автоматические результаты
+    }
+  } else {
+    console.log(`DEBUG: Case 3 - ${h1Count} headers found (< 5), manual mode required`);
+  }
+
+  // ЭТАП 4: Ручной режим (КЕЙС 2 и 3)
+  if (metas.length === 0) {
+    console.log(`Found ${h1Count} pages. Please assign H1 headings to page slugs.`);
+
+    // Извлекаем заголовки для ручного назначения
+    const h1Headings: string[] = [];
+    for (const h1Pos of h1Positions) {
+      const heading = lines[h1Pos].replace(/^#\s+/, "").trim();
+      h1Headings.push(heading);
+    }
+
+    // Показываем доступные заголовки
+    h1Headings.forEach((heading, idx) => {
+      console.log(`${idx + 1}) ${heading}`);
+    });
+
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    const ask = (q: string) =>
-      new Promise<string>((res) => rl.question(q, res));
-    const manualMetas: MetaPos[] = [];
+    const ask = (q: string) => new Promise<string>((res) => rl.question(q, res));
+    
+    // Спрашиваем про все 5 slug'ов
     for (const slug of requiredSlugs) {
-      const answer = await ask(`Select the number for slug "${slug}": `);
-      const index = parseInt(answer, 10) - 1;
-      const heading = h1Headings[index];
-      const lineIdx = lines.findIndex(
-        (l) => l.includes(heading) && /^#\s+/.test(l)
-      );
-      // Find Title and Description above H1
-      let titleLine = "";
-      let descLine = "";
-      for (let k = lineIdx - 1; k >= 0; k--) {
-        if (!titleLine) {
-          const t = lines[k].match(titlePattern);
-          if (t) {
-            titleLine = t[1].trim();
-            continue;
-          }
-        } else if (!descLine) {
-          const d = lines[k].match(descPattern);
-          if (d) {
-            descLine = d[1].trim();
-            break;
-          }
-        }
+      const answer = await ask(`Select the number for slug "${slug}" (press Enter to skip): `);
+      
+      if (!answer.trim()) {
+        console.log(`Skipping slug "${slug}"`);
+        continue;
       }
-      const cleanTitle = titleLine
-        .replace(/^\*{1,2}/, "")
-        .replace(/\*{1,2}$/, "")
-        .replace(/\\/g, "")
-        .trim();
-      const cleanDesc = descLine
-        .replace(/^\*{1,2}/, "")
-        .replace(/\*{1,2}$/, "")
-        .replace(/\\/g, "")
-        .trim();
-      manualMetas.push({
-        slug,
-        title: cleanTitle,
-        description: cleanDesc,
-        index: lineIdx,
-      });
+      
+      const index = parseInt(answer, 10) - 1;
+      if (index < 0 || index >= h1Headings.length) {
+        console.log(`Invalid selection for slug "${slug}", skipping`);
+        continue;
+      }
+      
+      const h1Pos = h1Positions[index];
+      const metadata = extractMetadataAboveH1(lines, h1Pos);
+      
+      if (metadata) {
+        metas.push({
+          slug,
+          title: metadata.title,
+          description: metadata.description,
+          h1Index: h1Pos,
+        });
+        console.log(`DEBUG: Manually assigned "${metadata.title}" -> ${slug}`);
+      } else {
+        console.warn(`DEBUG: No metadata found for H1 at line ${h1Pos + 1}`);
+      }
     }
+    
     rl.close();
-    metas.length = 0;
-    manualMetas.forEach((m) => metas.push(m));
   }
 
-  // Составляем фрагменты по страницам
+  // ЭТАП 5: Извлечение контента
   const siteData = {} as SiteData;
-  metas.forEach((meta, idx) => {
-    const start = meta.index;
-    const end = metas[idx + 1]?.index ?? lines.length;
-    const fragment = lines.slice(start, end);
-    const blocksAll = parseBlocks(fragment);
+  
+  for (const meta of metas) {
+    const content = extractContentUnderH1(lines, meta.h1Index);
+    
+    // ЭТАП 6: Парсинг и очистка
+    const blocksAll = parseBlocks(content);
     const blocks = blocksAll.filter((b) => {
       if (b.type === "paragraph" && typeof b.text === "string") {
         const plain = b.text.replace(/<\/?strong>/gi, "");
+        // Удаляем блоки с метаданными
         if (titlePattern.test(plain) || descPattern.test(plain)) {
           return false;
         }
+        return plain.trim().length > 0;
       }
       return true;
     });
+    
+    console.log(`DEBUG: Processing page "${meta.slug}" with ${blocks.length} blocks`);
+    
+    // ЭТАП 7: Формирование результата
     siteData[meta.slug] = {
       title: meta.title,
       description: meta.description,
       blocks,
     };
-  });
+  }
 
   return siteData;
 }
 
 /**
- * Читает файл .md или .docx и возвращает SiteData или null при ошибке
+ * Читает файл .md и возвращает SiteData или null при ошибке
  */
 export async function parseFileMulti(
   filePath: string

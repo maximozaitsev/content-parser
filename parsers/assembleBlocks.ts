@@ -1,17 +1,165 @@
 // assembleBlocks.ts
 import readline from "readline";
 
-const ADVANTAGES_KEYWORDS = [
-  "Advantages",
-  "Ventajas",
-  "Vorteile",
-  "Avantages",
-  "Fördelar",
-];
-const GAMES_KEYWORDS = ["Games", "Game", "Juegos", "Spiele", "Jeux", "Spel"];
-const BONUS_KEYWORDS = ["bonus", "promo"];
-const SUPPORT_KEYWORDS = ["support", "soporte", "unterstützung", "soutien"];
-const FAQ_KEYWORDS = ["faq", "frequently asked questions"];
+// Centralized, easily extendable keyword registry
+const KEYWORDS = {
+  advantages: [
+    "Advantages",
+    "Ventajas",
+    "Vorteile",
+    "Avantages",
+    "Fördelar",
+    "Vantaggi",
+    "Vantagens",
+    "Zalety",
+    "Πλεονεκτήματα",
+    "Voordelen",
+    "Edut",
+    "Fordeler",
+    "Avantaje",
+  ],
+  games: [
+    "Games",
+    "Game",
+    "Juegos",
+    "Spiele",
+    "Jeux",
+    "Spel",
+    "Giochi",
+    "Jogos",
+    "Jogo",
+    "Gry",
+    "Gra",
+    "Spellen",
+    "Παιχνίδια",
+    "Pelit",
+    "Spill",
+    "Jocuri",
+  ],
+  bonus: [
+    "bonus",
+    "promo",
+    "bono",
+    "bonos",
+    "bonificação",
+    "bônus",
+    "promoção",
+    "promoções",
+    "promociones",
+    "promozioni",
+    "promotions",
+    "aktionen",
+    "promoties",
+    "προσφορές",
+    "bonusar",
+    "kampanj",
+    "kampanjer",
+    "bonussen",
+    "Bonukset",
+    "Tarjoukset",
+    "Bonuser",
+    "Kampanjer",
+    "Bonusuri",
+    "Promoții",
+  ],
+  support: [
+    "support",
+    "soporte",
+    "unterstützung",
+    "soutien",
+    "asistencia",
+    "assistance",
+    "assistenza",
+    "support",
+    "customer support",
+    "help",
+    "suporte",
+    "atendimento",
+    "wsparcie",
+    "pomoc",
+    "ondersteuning",
+    "klantenservice",
+    "υποστήριξη",
+    "στήριξη",
+    "kundtjänst",
+    "kundsupport",
+    "Tuki",
+    "Asiakastuki",
+    "Kundestøtte",
+    "Brukerstøtte",
+    "Hjelp",
+    "Suport",
+    "Asistență clienți",
+  ],
+  faq: [
+    "faq",
+    "frequently asked questions",
+    "preguntas",
+    "preguntas frecuentes",
+    "häufig gestellte fragen",
+    "questions fréquentes",
+    "domande frequenti",
+    "perguntas frequentes",
+    "najczęściej zadawane pytania",
+    "veelgestelde vragen",
+    "συχνές ερωτήσεις",
+    "vanliga frågor",
+    "UKK",
+    "Usein kysytyt kysymykset",
+    "OSS",
+    "Ofte stilte spørsmål",
+    "Întrebări frecvente",
+  ],
+  deposit: [
+    "deposit",
+    "depositing",
+    "depósito",
+    "dépôt",
+    "einzahlung",
+    "insättningsmetoder",
+    "insättning",
+    "insättningar",
+    "deposito",
+    "depósito",
+    "wpłata",
+    "depozyt",
+    "storting",
+    "storten",
+    "κατάθεση",
+    "Talletus",
+    "Innskudd",
+    "Depunere",
+  ],
+  withdrawal: [
+    "withdrawal",
+    "withdrawing",
+    "retiro",
+    "retirada",
+    "retrait",
+    "abhebung",
+    "auszahlungsmethoden",
+    "uttag",
+    "prelievo",
+    "saque",
+    "levantamento",
+    "wypłata",
+    "wycofanie",
+    "opname",
+    "uitbetaling",
+    "ανάληψη",
+    "utbetalning",
+    "utbetalningar",
+    "uttagsmetoder",
+    "Nosto",
+    "Uttak",
+    "Retragere",
+  ],
+} as const;
+
+function includesAny(haystack: string, needles: readonly string[]) {
+  const s = haystack.toLowerCase();
+  return needles.some((n) => s.includes(n.toLowerCase()));
+}
 
 /**
  * Запрос ввода у пользователя через консоль с отображением доступных заголовков.
@@ -37,6 +185,27 @@ function askUserForHeader(
       }
     );
   });
+}
+
+async function moveFirstMatchingSectionToAbout(
+  data: any,
+  keywords: readonly string[],
+  promptText: string
+): Promise<string | null> {
+  const sectionKeys = Object.keys(data.sections);
+  if (sectionKeys.length === 0) return null;
+
+  let heading = sectionKeys.find((h) => includesAny(h, keywords)) || null;
+  if (!heading) {
+    const userHeader = await askUserForHeader(sectionKeys, `\n${promptText}`);
+    if (sectionKeys.includes(userHeader)) heading = userHeader;
+  }
+  if (heading) {
+    data.about[heading] = data.sections[heading];
+    delete data.sections[heading];
+    return heading;
+  }
+  return null;
 }
 
 /**
@@ -99,9 +268,7 @@ export async function assembleBlocks(parsed: {
   if (sectionsHeaders.length > 0) {
     let candidate = sectionsHeaders[0];
     const candidateLower = candidate.toLowerCase();
-    let isGamesCandidate = GAMES_KEYWORDS.some((keyword) =>
-      candidateLower.includes(keyword.toLowerCase())
-    );
+    let isGamesCandidate = includesAny(candidate, KEYWORDS.games);
     if (!isGamesCandidate) {
       const userGamesHeader = await askUserForHeader(
         sectionsHeaders,
@@ -130,9 +297,7 @@ export async function assembleBlocks(parsed: {
   if (sectionsHeadersAfterGames.length > 0) {
     let candidateBonus = sectionsHeadersAfterGames[0];
     const candidateBonusLower = candidateBonus.toLowerCase();
-    let isBonusCandidate = BONUS_KEYWORDS.some((keyword) =>
-      candidateBonusLower.includes(keyword.toLowerCase())
-    );
+    let isBonusCandidate = includesAny(candidateBonus, KEYWORDS.bonus);
     if (!isBonusCandidate) {
       const userBonusHeader = await askUserForHeader(
         sectionsHeadersAfterGames,
@@ -158,72 +323,24 @@ export async function assembleBlocks(parsed: {
     data["bonuses-and-promotions"] = {};
   }
 
-  // --- Блок: распределение Deposit и Withdrawal в about ---
-  if (
-    data["bonuses-and-promotions"] &&
-    Object.keys(data["bonuses-and-promotions"]).length > 0
-  ) {
-    const bonusHeading = Object.keys(data["bonuses-and-promotions"])[0];
-    const bonusIndex = h2Headers.indexOf(bonusHeading);
-    if (bonusIndex !== -1 && bonusIndex + 1 < h2Headers.length) {
-      let depositHeading = h2Headers[bonusIndex + 1];
-      const lowerDeposit = depositHeading.toLowerCase();
-      const isDeposit = [
-        "deposit",
-        "depositing",
-        "depósito",
-        "dépôt",
-        "einzahlung",
-        "insättningsmetoder",
-      ].some((kw) => lowerDeposit.includes(kw));
-      if (!isDeposit) {
-        depositHeading = await askUserForHeader(
-          h2Headers,
-          "\nВведите заголовок для Deposit, содержащий слово с корнем 'deposit' (или его аналог): "
-        );
-      }
-      if (data.sections[depositHeading]) {
-        data.about[depositHeading] = data.sections[depositHeading];
-        delete data.sections[depositHeading];
-      }
-      if (bonusIndex + 2 < h2Headers.length) {
-        let withdrawalHeading = h2Headers[bonusIndex + 2];
-        const lowerWithdrawal = withdrawalHeading.toLowerCase();
-        const isWithdrawal = [
-          "withdrawal",
-          "withdrawing",
-          "retiro",
-          "retrait",
-          "abhebung",
-          "uttag",
-        ].some((kw) => lowerWithdrawal.includes(kw));
-        if (!isWithdrawal) {
-          withdrawalHeading = await askUserForHeader(
-            h2Headers,
-            "\nВведите заголовок для Withdrawal, содержащий слово с корнем 'withdrawal' (или его аналог): "
-          );
-        }
-        if (data.sections[withdrawalHeading]) {
-          data.about[withdrawalHeading] = data.sections[withdrawalHeading];
-          delete data.sections[withdrawalHeading];
-        }
-      }
-    } else {
-      console.log(
-        "Не удалось определить Deposit и Withdrawal, так как после бонусного раздела нет достаточного количества заголовков."
-      );
-    }
-  } else {
-    console.log(
-      "Блок bonuses-and-promotions не найден, невозможно автоматически определить Deposit и Withdrawal."
+  // --- Блок: распределение Deposit и Withdrawal в about (без зависимости от бонусного блока) ---
+  {
+    await moveFirstMatchingSectionToAbout(
+      data,
+      KEYWORDS.deposit,
+      "Введите заголовок для Deposit (или выберите), содержащий слово с корнем 'deposit' (или его аналог): "
+    );
+
+    await moveFirstMatchingSectionToAbout(
+      data,
+      KEYWORDS.withdrawal,
+      "Введите заголовок для Withdrawal (или выберите), содержащий слово с корнем 'withdrawal' (или его аналог): "
     );
   }
 
   // --- Блок: выделение "support" ---
   const supportCandidates = Object.keys(data.sections).filter((header) =>
-    SUPPORT_KEYWORDS.some((keyword) =>
-      header.toLowerCase().includes(keyword.toLowerCase())
-    )
+    includesAny(header, KEYWORDS.support)
   );
   let supportCandidate: string | null = null;
   if (supportCandidates.length >= 2) {
@@ -255,7 +372,7 @@ export async function assembleBlocks(parsed: {
   for (let i = h2Headers.length - 1; i >= 0; i--) {
     const header = h2Headers[i];
     const headerLower = header.toLowerCase();
-    if (FAQ_KEYWORDS.some((kw) => headerLower.includes(kw)) && header in data.sections) {
+    if (includesAny(header, KEYWORDS.faq) && header in data.sections) {
       faqCandidate = header;
       break;
     }
@@ -282,6 +399,8 @@ export async function assembleBlocks(parsed: {
 
   // --- Итоговая сборка: упорядочиваем ключи ---
   const orderedData = {
+    "meta-title": data["meta-title"],
+    "meta-description": data["meta-description"],
     title: data.title,
     intro: data.intro,
     about: data.about,
