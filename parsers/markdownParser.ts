@@ -2,22 +2,27 @@
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
+import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer.mjs";
 
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).
  */
 function convertMarkdownFormatting(text: string): string {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\\-(?=\s|$)/g, "-")
-    .replace(/\\/g, "");
+  return replaceCurrentYearWithPlaceholder(
+    text
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\\-(?=\s|$)/g, "-")
+      .replace(/\\/g, "")
+  );
 }
 
 /**
  * Удаляет Markdown-жирный шрифт (**...**) без сохранения тэгов.
  */
 function stripBoldMarkdown(text: string): string {
-  return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\\/g, "");
+  return replaceCurrentYearWithPlaceholder(
+    text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\\/g, "")
+  );
 }
 
 /**

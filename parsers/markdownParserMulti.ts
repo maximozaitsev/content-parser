@@ -2,6 +2,7 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
+import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer.mjs";
 
 /**
  * Структуры данных для мультистраничного сайта
@@ -95,6 +96,7 @@ function parseBlocks(lines: string[]): Block[] {
       let text = trimmed.replace(/^\d+\.|^[*\-]\s+/, "").trim();
       text = text.replace(boldRegex, "<strong>$1</strong>");
       text = text.replace(/\\/g, "");
+      text = replaceCurrentYearWithPlaceholder(text);
       if (!listBlock) {
         listBlock = {
           type: "list",
@@ -112,9 +114,11 @@ function parseBlocks(lines: string[]): Block[] {
       listBlock = null;
       // strip bold from headings
       const rawHeading = hMatch[2].trim();
-      const cleanHeading = rawHeading
-        .replace(boldRegex, "$1")
-        .replace(/\\/g, "");
+      const cleanHeading = replaceCurrentYearWithPlaceholder(
+        rawHeading
+          .replace(boldRegex, "$1")
+          .replace(/\\/g, "")
+      );
       blocks.push({
         type: "heading",
         level: hMatch[1].length,
@@ -124,9 +128,11 @@ function parseBlocks(lines: string[]): Block[] {
     }
     // Параграф
     // inline bold to <strong> in paragraphs
-    const paraText = trimmed
-      .replace(boldRegex, "<strong>$1</strong>")
-      .replace(/\\/g, "");
+    const paraText = replaceCurrentYearWithPlaceholder(
+      trimmed
+        .replace(boldRegex, "<strong>$1</strong>")
+        .replace(/\\/g, "")
+    );
     blocks.push({ type: "paragraph", text: paraText });
     listBlock = null;
   }
