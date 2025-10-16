@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
-import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer.mjs";
+import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer";
 
 // Регэксы для мета-полей (Title/Description с вариациями Meta/SEO и допускающими **жирное**)
 // Поддерживаемые ключевые слова:

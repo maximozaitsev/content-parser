@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
-import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer.mjs";
+import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer";
 
 /**
  * Функция для обработки Markdown-разметки (напр., преобразование **жирного текста**).

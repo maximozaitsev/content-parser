@@ -1,4 +1,7 @@
-export function replaceCurrentYearWithPlaceholder(text) {
+/**
+ * Функция для замены текущего года на плейсхолдер
+ */
+export function replaceCurrentYearWithPlaceholder(text: string): string {
   if (!text || typeof text !== 'string') {
     return text;
   }
