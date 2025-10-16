@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { parseFile } from "./parsers/markdownParserMultiLang";
-import { ensureDirectories, saveJSON } from "./parsers/fileUtils";
-import { assembleBlocks } from "./parsers/assembleBlocks";
+import { parseFile } from "./parsers/markdownParserMultiLang.ts";
+import { ensureDirectories, saveJSON } from "./parsers/fileUtils.ts";
+import { assembleBlocks } from "./parsers/assembleBlocks.ts";
 
 // Инициализация CLI, совместимая с обычным parse.ts
 const program = new Command();

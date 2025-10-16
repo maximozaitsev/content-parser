@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
-import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer";
+import { replaceCurrentYearWithPlaceholder } from "../utils/yearReplacer.ts";
 
 /**
  * Структуры данных для мультистраничного сайта
