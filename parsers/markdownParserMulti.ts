@@ -59,10 +59,11 @@ function detectSlug(title: string, isFirst: boolean): keyof SiteData {
 }
 
 // Регэксы для метаданных (поддерживают Title, Meta-Title, SEO-Title и их вариации, универсальная форма)
+// Двоеточие после Title/Description теперь опционально
 export const titlePattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*title\s*(?:\*\*?)?\s*:\s*(.+)$/i;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*title\s*(?:\*\*?)?\s*:?\s*(.+)$/i;
 export const descPattern =
-  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*description\s*(?:\*\*?)?\s*:\s*(.+)$/i;
+  /^(?:\*\*?)?\s*(?:meta[\s-]*|seo[\s-]*|)\s*description\s*(?:\*\*?)?\s*:?\s*(.+)$/i;
 
 /**
  * Удаляет Markdown-картинки из текста
@@ -164,24 +165,33 @@ function extractMetadataAboveH1(lines: string[], h1Pos: number): { title: string
   let titleLine = "";
   let descLine = "";
   
+  // Ищем метаданные в строках выше H1 (поиск в обратном порядке)
   for (let k = h1Pos - 1; k >= 0; k--) {
+    const line = lines[k].trim();
+    if (!line) continue; // Пропускаем пустые строки
+    
+    // Сначала ищем description (если еще не найден)
     if (!descLine) {
-      const d = lines[k].match(descPattern);
-      if (d) {
+      const d = line.match(descPattern);
+      if (d && d[1]) {
         descLine = d[1].trim();
         continue;
       }
     }
+    
+    // Затем ищем title (если еще не найден)
     if (!titleLine) {
-      const t = lines[k].match(titlePattern);
-      if (t) {
+      const t = line.match(titlePattern);
+      if (t && t[1]) {
         titleLine = t[1].trim();
-        break;
+        // Не прерываем цикл, продолжаем искать description если нужно
+        if (descLine) break;
       }
     }
   }
   
   if (titleLine && descLine) {
+    // Очищаем от markdown форматирования
     const cleanTitle = titleLine
       .replace(/^\*{1,2}\s*/, "")
       .replace(/\s*\*{1,2}$/, "")
